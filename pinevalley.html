@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Pine Valley · 2015</title>
+<style>
+:root{
+  --bg:#0a0a0a; --panel:#141414; --panel2:#1c1c1c; --border:#262626;
+  --text:#e5e5e5; --muted:#808080; --accent:#7fff9e; --accent2:#8ea6ff;
+  --danger:#ff5a6e; --gold:#e6c760; --link:#7ac0ff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+  font-size:14px;line-height:1.6;}
+button{font-family:inherit;font-size:13px;cursor:pointer;border:1px solid var(--border);
+  background:var(--panel2);color:var(--text);padding:8px 14px;border-radius:6px;
+  transition:.15s;touch-action:manipulation;}
+button:active{transform:scale(.97);}
+button.primary{background:linear-gradient(135deg,#2e6b3f,#1a4527);border-color:#3a8f52;color:#c8ffd6;font-weight:700;}
+button.danger{border-color:#5a2a35;color:var(--danger);}
+input,textarea{font-family:inherit;font-size:14px;background:#0d0d0d;color:var(--text);
+  border:1px solid var(--border);border-radius:6px;padding:9px 12px;outline:none;width:100%;}
+input:focus,textarea:focus{border-color:var(--accent);}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ===== 开场动画 ===== */
+#intro{position:fixed;inset:0;background:#000;z-index:2000;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:20px;}
+#intro.hide{display:none;}
+#intro .glitch{font-size:30px;color:var(--accent);letter-spacing:8px;text-shadow:0 0 10px var(--accent);}
+#intro .sub{font-size:11px;color:#555;margin-top:16px;letter-spacing:4px;}
+#intro .loading{margin-top:40px;width:260px;height:3px;background:#111;border:1px solid #222;overflow:hidden;}
+#intro .loading::after{content:'';display:block;height:100%;width:0;background:var(--accent);animation:load 1.6s linear forwards;}
+@keyframes load{to{width:100%;}}
+#intro .log{margin-top:24px;font-size:10px;color:#444;height:100px;width:280px;overflow:hidden;font-family:'Courier New',monospace;}
+#intro .log div{opacity:0;transition:opacity .2s;}
+
+/* ===== 建档 ===== */
+#create{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:1800;display:none;
+  align-items:center;justify-content:center;padding:16px;overflow-y:auto;}
+#create.show{display:flex;}
+#create .box{max-width:420px;width:100%;background:var(--panel);border:1px solid var(--border);
+  border-radius:10px;padding:22px;position:relative;}
+#create .box::before{content:'>> 新用户注册 <<';position:absolute;top:-10px;left:18px;
+  background:var(--bg);padding:0 8px;font-size:11px;color:var(--accent);letter-spacing:2px;}
+#create h2{font-size:15px;color:var(--accent);margin-bottom:6px;letter-spacing:2px;}
+#create .tip{font-size:11px;color:var(--muted);margin-bottom:18px;line-height:1.6;}
+#create .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.field{margin-bottom:12px;}
+.field label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px;letter-spacing:1px;}
+.field .hint{font-size:10px;color:#444;margin-top:4px;}
+
+/* ===== 顶栏 ===== */
+#top-bar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:8px 12px;
+  background:#0d0d0d;border-bottom:1px solid var(--border);z-index:100;min-height:48px;}
+#top-bar .menu-btn{font-size:20px;padding:4px 10px;background:transparent;border:none;color:var(--accent);}
+#top-bar .brand{font-size:12px;color:var(--accent);font-weight:700;letter-spacing:2px;}
+#top-bar .meta{margin-left:auto;font-size:11px;color:var(--muted);display:flex;gap:10px;align-items:center;}
+#top-bar .meta b{color:var(--accent2);font-weight:400;}
+#top-bar .cfg-btn{padding:5px 10px;font-size:14px;background:transparent;border:1px solid var(--border);color:var(--text);}
+
+/* ===== 主布局：全屏对话 ===== */
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+#chat-wrapper{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+#chat{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:14px;}
+
+/* 消息（酒馆兼容 class） */
+.mes{display:flex;flex-direction:column;width:100%;}
+.mes[is_user="true"]{align-items:flex-end;}
+.mes[is_user="false"]{align-items:flex-start;}
+.mes_block{max-width:88%;background:#141414;border:1px solid #222;border-radius:8px;padding:11px 14px;position:relative;}
+.mes[is_user="true"] .mes_block{background:linear-gradient(135deg,#1a3a25,#0f2418);border-color:#2a5038;}
+.mes[is_user="false"] .mes_block{background:#141414;border-color:#222;border-left:3px solid var(--accent);}
+.ch_name{display:flex;align-items:baseline;gap:8px;margin-bottom:5px;}
+.name_text{font-size:11px;color:var(--accent2);font-weight:700;letter-spacing:1px;}
+.mes[is_user="true"] .name_text{color:#c8ffd6;}
+.timestamp{font-size:10px;color:var(--muted);}
+.mes_text{font-size:13px;line-height:1.75;white-space:pre-wrap;word-break:break-word;color:var(--text);}
+.mes.system{align-items:center;}
+.mes.system .mes_block{background:#0d0d0d;border-color:#1a1a1a;border-style:dashed;
+  color:var(--muted);font-size:11px;padding:6px 14px;border-radius:20px;text-align:center;max-width:90%;}
+.mes.thinking .mes_block{color:var(--muted);font-style:italic;}
+.dots{display:inline-flex;gap:3px;align-items:center;}
+.dots i{width:4px;height:4px;border-radius:50%;background:var(--accent);animation:bt 1.2s infinite;}
+.dots i:nth-child(2){animation-delay:.15s;}
+.dots i:nth-child(3){animation-delay:.3s;}
+@keyframes bt{0%,60%,100%{opacity:.2;}30%{opacity:1;}}
+
+/* 输入栏（酒馆兼容 ID） */
+#send_form{flex-shrink:0;display:flex;gap:8px;padding:10px 12px 14px;background:#0d0d0d;
+  border-top:1px solid var(--border);align-items:flex-end;}
+#send_textarea{flex:1;min-height:42px;max-height:140px;resize:none;padding:10px 14px;
+  line-height:1.5;font-size:14px;background:#141414;border:1px solid var(--border);border-radius:20px;}
+#send_but{padding:0 20px;height:42px;flex-shrink:0;border-radius:20px;font-weight:700;}
+
+/* ===== 侧栏抽屉 ===== */
+#sidebar{position:absolute;top:0;bottom:0;left:0;width:280px;background:#0d0d0d;
+  border-right:1px solid var(--border);overflow-y:auto;z-index:200;
+  transform:translateX(-100%);transition:transform .25s ease;box-shadow:8px 0 30px rgba(0,0,0,.7);}
+#sidebar.open{transform:translateX(0);}
+#sideMask{display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:190;}
+#sideMask.show{display:block;}
+
+.side-head{padding:14px;border-bottom:1px solid var(--border);background:#0a0a0a;position:sticky;top:0;z-index:2;}
+.side-head .nm{font-size:15px;color:var(--accent);font-weight:700;}
+.side-head .sub{font-size:11px;color:var(--muted);margin-top:3px;}
+.side-body{padding:12px;}
+.side-sec{margin-bottom:16px;}
+.side-sec h4{font-size:10px;color:var(--accent2);letter-spacing:2px;margin-bottom:8px;
+  padding-bottom:4px;border-bottom:1px dashed #222;}
+.kv{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;gap:8px;}
+.kv .k{color:var(--muted);flex-shrink:0;}
+.kv .v{color:var(--text);text-align:right;word-break:break-all;}
+.bar-row{margin:8px 0;}
+.bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:3px;}
+.bar-label b{color:var(--text);font-weight:400;}
+.bar{height:5px;background:#0a0a0a;border-radius:3px;overflow:hidden;}
+.bar>i{display:block;height:100%;transition:width .5s;}
+.bar.stam>i{background:linear-gradient(90deg,#1a8f4a,#4ee87a);}
+.bar.ins>i{background:linear-gradient(90deg,#5a3fb8,#a88aff);}
+.bar.susp>i{background:linear-gradient(90deg,#8f2a35,#ff5a6e);}
+
+.fn-list{display:flex;flex-direction:column;gap:6px;}
+.fn-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#141414;
+  border:1px solid #222;border-radius:6px;color:var(--text);text-align:left;font-size:13px;position:relative;}
+.fn-btn:active{background:#1c1c1c;}
+.fn-btn .ic{font-size:16px;width:22px;text-align:center;}
+.fn-btn .badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;font-weight:700;}
+
+/* ===== 全屏面板 ===== */
+.panel{position:fixed;inset:0;background:var(--bg);z-index:1500;display:none;flex-direction:column;}
+.panel.show{display:flex;}
+.panel-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0d0d0d;
+  border-bottom:1px solid var(--border);flex-shrink:0;}
+.panel-head .close{font-size:16px;padding:5px 12px;color:var(--accent);cursor:pointer;
+  background:transparent;border:1px solid var(--border);border-radius:6px;}
+.panel-head h2{font-size:14px;color:var(--accent);letter-spacing:2px;flex:1;}
+.panel-body{flex:1;overflow-y:auto;padding:14px;}
+
+/* ===== 弹窗 ===== */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1600;display:none;
+  align-items:center;justify-content:center;padding:16px;}
+.modal.show{display:flex;}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:100%;
+  max-width:540px;max-height:92vh;display:flex;flex-direction:column;}
+.modal-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;
+  justify-content:space-between;align-items:center;gap:8px;}
+.modal-head h3{font-size:13px;color:var(--accent);letter-spacing:2px;}
+.modal-body{padding:14px;overflow-y:auto;flex:1;}
+
+/* ===== 通用小组件 ===== */
+.chat-item{display:flex;gap:10px;padding:11px;border-bottom:1px solid #141414;cursor:pointer;align-items:center;}
+.chat-item:active{background:#141414;}
+.chat-item .av{width:44px;height:44px;border-radius:8px;background:#1c1c1c;
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--accent);
+  flex-shrink:0;border:1px solid #2a2a2a;}
+.chat-item .info{flex:1;min-width:0;}
+.chat-item .info .nm{font-size:13px;color:var(--accent2);font-weight:700;}
+.chat-item .info .pv{font-size:11px;color:var(--muted);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+
+.forum-post{background:#141414;border:1px solid #222;border-radius:6px;padding:11px;margin-bottom:8px;cursor:pointer;}
+.forum-post:active{background:#1c1c1c;}
+.forum-post .pt{font-size:13px;color:var(--link);font-weight:700;margin-bottom:5px;}
+.forum-post .pm{font-size:10px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;}
+.forum-post .pv{font-size:12px;color:#aaa;margin-top:6px;line-height:1.5;}
+.reply{background:#0d0d0d;border-left:2px solid var(--accent2);padding:8px 10px;margin-bottom:6px;
+  font-size:12px;line-height:1.6;border-radius:0 4px 4px 0;}
+.reply .rn{color:var(--accent);font-weight:700;font-size:11px;}
+.reply .rc{color:var(--text);margin-top:3px;}
+
+.char-card{background:#141414;border:1px solid #222;border-radius:8px;padding:14px;margin-bottom:10px;}
+.char-card .cc-head{display:flex;gap:12px;align-items:center;margin-bottom:12px;}
+.char-card .cc-av{width:50px;height:50px;border-radius:8px;background:#1c1c1c;
+  display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--accent);
+  border:1px solid #2a2a2a;flex-shrink:0;}
+.char-card .cc-name{font-size:14px;color:var(--accent);font-weight:700;}
+.char-card .cc-tag{font-size:10px;color:var(--muted);margin-top:3px;}
+.char-card .cc-sec{margin-top:10px;padding-top:10px;border-top:1px dashed #222;}
+.char-card .cc-sec .lbl{font-size:10px;color:var(--accent2);letter-spacing:1.5px;margin-bottom:5px;}
+.char-card .cc-sec .txt{font-size:12px;color:#aaa;line-height:1.6;}
+
+.clue{background:#141414;border:1px solid #222;border-left:3px solid var(--gold);
+  border-radius:6px;padding:11px;margin-bottom:8px;}
+.clue .ct{font-size:12px;color:var(--gold);font-weight:700;margin-bottom:5px;}
+.clue .cc{font-size:12px;color:#aaa;line-height:1.6;}
+
+.empty{text-align:center;color:var(--muted);font-size:12px;padding:40px 10px;line-height:1.8;}
+
+.preset-item{background:#141414;border:1px solid #222;border-radius:8px;padding:12px;margin-bottom:10px;}
+.preset-item.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(127,255,158,.2) inset;}
+.preset-group{font-size:10px;color:var(--muted);letter-spacing:2px;margin:14px 0 8px;}
+.preset-group:first-child{margin-top:0;}
+
+/* 移动端：消息占满 */
+@media (max-width:520px){
+  .mes_block{max-width:92%;}
+  #chat{padding:12px 10px;gap:12px;}
+}
+</style>
+</head>
+<body>
+<!-- 开场动画 -->
+<div id="intro">
+  <div class="glitch">松 林 谷</div>
+  <div class="sub">PINE VALLEY · 2015</div>
+  <div class="loading"></div>
+  <div class="log" id="introLog"></div>
+</div>
+
+<!-- 建档 -->
+<div id="create">
+  <div class="box">
+    <h2>新用户注册</h2>
+    <div class="tip">检测到新设备接入松林谷留言板。<br>请先登记你的基本信息，系统将为你建立档案。</div>
+    <div class="field">
+      <label>姓名</label>
+      <input id="cr-name" placeholder="你叫什么？" maxlength="12">
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>性别</label>
+        <input id="cr-gender" placeholder="男 / 女 / 其他" maxlength="8">
+      </div>
+      <div class="field">
+        <label>年龄</label>
+        <input id="cr-age" type="number" placeholder="16" min="10" max="30">
+      </div>
+    </div>
+    <div class="field">
+      <label>外貌特征</label>
+      <input id="cr-appearance" placeholder="发色、身高、明显特征..." maxlength="40">
+    </div>
+    <div class="field">
+      <label>当前穿着</label>
+      <input id="cr-outfit" placeholder="破洞牛仔裤、黑卫衣..." maxlength="40">
+    </div>
+    <div class="field">
+      <label>你来松林谷的原因</label>
+      <input id="cr-reason" placeholder="转学 / 找亲戚 / 查一件事..." maxlength="40">
+    </div>
+    <button class="primary" style="width:100%;padding:12px;margin-top:8px;font-size:14px;" onclick="confirmCreate()">建档进入</button>
+  </div>
+</div>
+
+<div id="app">
+
+  <!-- 顶栏（酒馆风格） -->
+  <div id="top-bar">
+    <button class="menu-btn" onclick="openSide()">☰</button>
+    <div class="brand">PINE VALLEY</div>
+    <div class="meta">
+      <span>DAY <b id="tDay">1</b></span>
+      <span id="tTime">上午</span>
+      <span>$<b id="tMoney">50</b></span>
+    </div>
+    <button class="cfg-btn" onclick="openModal('modal-api')">⚙</button>
+  </div>
+
+  <!-- 主区域 -->
+  <div id="main">
+
+    <div id="sideMask" onclick="closeSide()"></div>
+
+    <!-- 左侧栏（全功能） -->
+    <aside id="sidebar"></aside>
+
+    <!-- 主对话流（酒馆风格） -->
+    <div id="chat-wrapper">
+      <div id="chat"></div>
+      <div id="send_form">
+        <textarea id="send_textarea" placeholder="输入你的行动或对话...（Enter 发送 / Shift+Enter 换行）" rows="1"></textarea>
+        <button class="primary" id="send_but" onclick="sendChat()">发送</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ 全屏面板：短信列表 ============ -->
+<div class="panel" id="panel-sms">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-sms')">◂</button>
+    <h2>短信</h2>
+  </div>
+  <div class="panel-body" id="sms-body"></div>
+</div>
+
+<!-- 短信对话 -->
+<div class="panel" id="panel-chat">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-chat')">◂</button>
+    <h2 id="chat-title">短信</h2>
+  </div>
+  <div class="panel-body" style="display:flex;flex-direction:column;">
+    <div id="sms-stream" style="flex:1;display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;position:sticky;bottom:0;background:var(--bg);padding-top:10px;">
+      <input id="smsInput" placeholder="发送消息..." style="flex:1;">
+      <button class="primary" onclick="sendSMS()">发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- 论坛 -->
+<div class="panel" id="panel-forum">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-forum')">◂</button>
+    <h2>PINE VALLEY BBS</h2>
+    <button class="primary" style="padding:6px 12px;font-size:11px;" onclick="newPost()">+发帖</button>
+  </div>
+  <div class="panel-body" id="forum-body"></div>
+</div>
+
+<!-- 帖子详情 -->
+<div class="panel" id="panel-thread">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-thread')">◂</button>
+    <h2 style="font-size:12px;" id="thread-title">帖子</h2>
+  </div>
+  <div class="panel-body" id="thread-body"></div>
+</div>
+
+<!-- 角色卡 -->
+<div class="panel" id="panel-chars">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-chars')">◂</button>
+    <h2>角色档案</h2>
+  </div>
+  <div class="panel-body" id="chars-body"></div>
+</div>
+
+<!-- 角色详情 -->
+<div class="panel" id="panel-char">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-char')">◂</button>
+    <h2 id="char-title">角色</h2>
+  </div>
+  <div class="panel-body" id="char-body"></div>
+</div>
+
+<!-- 线索板 -->
+<div class="panel" id="panel-clues">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-clues')">◂</button>
+    <h2>线索板</h2>
+  </div>
+  <div class="panel-body" id="clues-body"></div>
+</div>
+
+<!-- 地图 -->
+<div class="panel" id="panel-map">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-map')">◂</button>
+    <h2>松林谷地图</h2>
+  </div>
+  <div class="panel-body" id="map-body"></div>
+</div>
+
+<!-- 日记 -->
+<div class="panel" id="panel-diary">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-diary')">◂</button>
+    <h2>日记</h2>
+  </div>
+  <div class="panel-body" id="diary-body"></div>
+</div>
+
+<!-- 设置 -->
+<div class="panel" id="panel-save">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-save')">◂</button>
+    <h2>存档 / 读档</h2>
+  </div>
+  <div class="panel-body" id="save-body"></div>
+</div>
+<div class="panel" id="panel-settings">
+  <div class="panel-head">
+    <button class="close" onclick="closePanel('panel-settings')">◂</button>
+    <h2>设置</h2>
+  </div>
+  <div class="panel-body">
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button onclick="openModal('modal-api')">⚙ API 配置</button>
+      <button onclick="openModal('modal-wb')">📖 世界书管理</button>
+      <button onclick="openModal('modal-preset')">🎭 AI 预设</button>
+      <button onclick="openModal('modal-theme')">🎨 美化 / 主题导入</button>
+      <button class="danger" onclick="resetGame()">↺ 重置游戏</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ API 弹窗 ============ -->
+<div class="modal" id="modal-api">
+  <div class="modal-box">
+    <div class="modal-head"><h3>API 配置</h3><button onclick="closeModal('modal-api')">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>接口地址</label><input id="cfg-url" placeholder="https://.../v1/chat/completions"></div>
+      <div class="field"><label>API Key</label><input id="cfg-key" type="password" placeholder="sk-..."></div>
+      <div class="field"><label>模型名</label><input id="cfg-model" placeholder="gpt-4o-mini"></div>
+      <div class="field"><label>温度</label><input id="cfg-temp" type="number" step="0.1" min="0" max="2"></div>
+      <button class="primary" style="width:100%;padding:10px;" onclick="saveApi()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 世界书弹窗 ============ -->
+<div class="modal" id="modal-wb">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>世界书</h3>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="primary" onclick="addWB()" style="padding:5px 10px;font-size:10px;">+新增</button>
+        <button onclick="exportWB()" style="padding:5px 10px;font-size:10px;">导出</button>
+        <button onclick="$('wb-import').click()" style="padding:5px 10px;font-size:10px;">导入</button>
+        <button onclick="closeModal('modal-wb')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="wb-list"></div>
+    <input type="file" id="wb-import" accept=".json" style="display:none;" onchange="importWB(event)">
+  </div>
+</div>
+
+<!-- ============ 预设弹窗 ============ -->
+<div class="modal" id="modal-preset">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>AI 预设</h3>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="primary" onclick="addPreset()" style="padding:5px 10px;font-size:10px;">+新增</button>
+        <button onclick="exportPresets()" style="padding:5px 10px;font-size:10px;">导出</button>
+        <button onclick="$('preset-import').click()" style="padding:5px 10px;font-size:10px;">导入</button>
+        <button onclick="closeModal('modal-preset')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="preset-list"></div>
+    <input type="file" id="preset-import" accept=".json,.txt" style="display:none;" onchange="importPresets(event)">
+  </div>
+</div>
+
+<!-- ============ 美化 / 主题弹窗（酒馆兼容） ============ -->
+<div class="modal" id="modal-theme">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>美化 / 主题</h3>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button onclick="exportTheme()" style="padding:5px 10px;font-size:10px;">导出</button>
+        <button onclick="$('theme-import').click()" style="padding:5px 10px;font-size:10px;">导入</button>
+        <button onclick="resetTheme()" style="padding:5px 10px;font-size:10px;">重置</button>
+        <button onclick="closeModal('modal-theme')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>酒馆风格自定义 CSS（直接粘贴即可）</label>
+        <textarea id="theme-css" rows="14" style="font-family:monospace;font-size:11px;"
+          placeholder="在此粘贴酒馆主题 JSON 里的 custom_css 字段内容，或直接粘贴 CSS。"></textarea>
+      </div>
+      <div class="field">
+        <label>自定义字体 URL（可选，@import 用）</label>
+        <input id="theme-font" placeholder="https://fonts.example.com/xxx.css">
+      </div>
+      <button class="primary" style="width:100%;padding:10px;" onclick="applyTheme()">应用主题</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
+        ▸ 支持导入酒馆导出的主题 JSON 文件，自动提取 <b>custom_css</b> 字段。<br>
+        ▸ 也可以直接粘贴纯 CSS。
+      </div>
+    </div>
+    <input type="file" id="theme-import" accept=".json,.css" style="display:none;" onchange="importTheme(event)">
+  </div>
+</div>
+
+<!-- 用于动态注入用户主题 -->
+<style id="user-theme"></style>
+
+<script>
+/* ==================== 工具 ==================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const now = () => Date.now();
+const LS = {
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},
+  del(k){try{localStorage.removeItem(k);}catch(e){}}
+};
+const fmtTime = ts => { const d=new Date(ts); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+
+/* ==================== 默认数据 ==================== */
+const DEF_SETTINGS = { apiUrl:'https://api.openai.com/v1/chat/completions', apiKey:'', model:'gpt-4o-mini' };
+
+const DEF_PRESETS = [
+  {
+    id:'p_default', group:'松林谷主线', name:'侦探GM（默认）', temperature:0.85,
+    system:`你是「松林谷 2015」侦探文字游戏的叙事AI，负责扮演所有NPC、推进剧情、生成论坛跟帖。
+
+# 世界观
+2015年，美国中西部俄亥俄州边陲小镇「松林谷」。曾经靠钢铁和铁路辉煌，现在只剩废弃工厂、锈迹斑斑的铁轨和一所破败的高中。神秘学暗线：森林矿坑里的白色生物、教堂祷告室的恶魔之书、五十年前的吸血鬼传说。
+2010年的学生大多已毕业离开，只有少数人还留在镇上。主视角是一名新来的青少年侦探。
+
+# 风格
+- 美式中西部小镇的压抑感，青少年社交直白、mean、有网感
+- 2015年的网络语境：短信、论坛、Facebook 时代的语气
+- NPC 说话不要机械化，要像真实美国高中生
+- 保持悬念，不要主动揭示主线真相
+
+# 当前状态
+{{state}}
+
+# 相关世界书
+{{worldbook}}
+
+# 输出要求
+只输出 JSON，不要任何其他文字，不要 markdown 代码块：
+{
+  "reply": "叙事正文 / NPC消息 / 论坛跟帖",
+  "state_changes": {},
+  "clue_add": null,
+  "char_update": null
+}`
+  }
+];
+
+const DEF_WB = [
+  { id:'wb1', name:'松林谷地理', enabled:true, constant:true, keywords:[], content:'松林谷位于俄亥俄州东南部。石溪穿镇而过。主要地点：铁锈轨高中、圣安德鲁教堂、废弃矿坑、终点站酒吧、好时光理发店、桑切斯墨西哥餐馆、VFW礼堂、《纪事报》办公室。' },
+  { id:'wb2', name:'白色兔子', enabled:true, constant:false, keywords:['白兔','兔子','矿坑','森林','白色'], content:'五十年前就有传闻：森林深处的废弃矿坑里住着白色皮毛的生物。镇上人称之为「白兔」。老哈罗德说那东西比兔子大得多。最近郊狼活动增加，农场丢鸡。解剖课上出现不明抓痕的鹿样本。' },
+  { id:'wb3', name:'恶魔之书', enabled:true, constant:false, keywords:['教堂','恶魔','祷告室','书','仪式'], content:'圣安德鲁教堂某间祷告室里据说藏有一本「恶魔之书」。连牧师都不愿提起。' },
+  { id:'wb4', name:'论坛文化', enabled:true, constant:false, keywords:['论坛','帖子','网友'], content:'松林谷高中生运营的匿名论坛，暗黑色界面。板块分：校园八卦、灵异事件、学习交流、地下交易。' },
+  { id:'wb5', name:'2015 高中生态', enabled:true, constant:false, keywords:['学校','同学','高中'], content:'铁锈轨高中是镇上唯一高中。学院派、本地核心、怪胎三层社交结构。阿片类止痛药正渗入校园。' }
+];
+
+const DEF_CHARS = {
+  '兰斯':   { name:'兰斯·索伦森', tag:'12年级 · 昆虫爱好者 · 怪胎', av:'🦋', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false },
+  '泰勒':   { name:'泰勒·罗素', tag:'12年级 · 摇滚乐手 · 警长之子', av:'🎸', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false },
+  '德文':   { name:'德文·明斯顿', tag:'12年级 · 亚文化 · 电影梦', av:'🎬', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false },
+  '柯文':   { name:'柯文·斯蒂尔', tag:'11年级 · 逃课 · 主播梦', av:'🎮', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false },
+  '梅根':   { name:'梅根·肖', tag:'12年级 · 优等生 · 邮局长之女', av:'📚', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false },
+  '凯尔':   { name:'凯尔·帕尔默', tag:'10年级 · 匿名博客主', av:'💻', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false },
+  '科尔顿': { name:'科尔顿·布坎南', tag:'12年级 · 橄榄球明星', av:'🏈', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false },
+  '克洛伊': { name:'克洛伊·戴维斯', tag:'11年级 · 啦啦队长', av:'📣', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false },
+  '清商':   { name:'清商·晏', tag:'18岁 · 自称天师 · 中美混血', av:'☯️', goodwill:0, suspicion:0, progress:0, secret:'未解锁', known:false }
+};
+
+const DEF_STATE = {
+  player:{ name:'你', gender:'未定', age:16, appearance:'', outfit:'', reason:'' },
+  day:1, timeIndex:0,
+  stats:{ stamina:100, maxStamina:100, insight:100, maxInsight:100, money:50, suspicion:0 },
+  clues:[], chars: JSON.parse(JSON.stringify(DEF_CHARS)),
+  flags:{}, phone:{ messages:{}, forum:[] }, created:false, chatLog:[]
+};
+
+const TIME_LABELS = ['上午','中午','放学','夜晚'];
+
+/* ==================== 状态 ==================== */
+let settings  = Object.assign({}, DEF_SETTINGS, LS.get('pv_settings',{}));
+let presets   = LS.get('pv_presets', DEF_PRESETS);
+let activePresetId = LS.get('pv_active_preset', 'p_default');
+let worldbook = LS.get('pv_wb', DEF_WB);
+let S         = LS.get('pv_state', JSON.parse(JSON.stringify(DEF_STATE)));
+
+function save(){
+  LS.set('pv_settings', settings);
+  LS.set('pv_presets', presets);
+  LS.set('pv_active_preset', activePresetId);
+  LS.set('pv_wb', worldbook);
+  LS.set('pv_state', S);
+}
+
+/* ==================== 开场 ==================== */
+const INTRO_LOGS = [
+  '> 正在拨号...',
+  '> 连接 2015 年松林谷留言板...',
+  '> 检测到信号干扰...',
+  '> 载入最近 30 天帖子...',
+  '> [警告] 有 3 条帖子被删除',
+  '> [警告] 矿坑话题被强制关闭',
+  '> 用户档案未建立...',
+  '> 请登记新用户信息'
+];
+
+function runIntro(){
+  const log = $('introLog');
+  INTRO_LOGS.forEach((t,i)=>{
+    const d = document.createElement('div');
+    d.textContent = t;
+    log.appendChild(d);
+    setTimeout(()=>{ d.style.opacity = '1'; }, i*140);
+  });
+  setTimeout(()=>{
+    if($('introBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'introBtn';
+    btn.textContent = '▶ 点击进入';
+    btn.style.cssText = 'margin-top:30px;padding:14px 32px;background:linear-gradient(180deg,#2e6b3f,#1a4527);border:1px solid #3a8f52;color:#c8ffd6;font-weight:700;font-size:15px;letter-spacing:3px;border-radius:8px;cursor:pointer;font-family:inherit;';
+    btn.onclick = enterGame;
+    $('intro').appendChild(btn);
+  }, 1500);
+}
+
+function enterGame(){
+  $('intro').classList.add('hide');
+  if(!S.created){ $('create').classList.add('show'); }
+  else { renderAll(); }
+}
+
+/* ==================== 建档 ==================== */
+function confirmCreate(){
+  const name = $('cr-name').value.trim() || '未署名';
+  const gender = $('cr-gender').value.trim() || '未定';
+  const age = parseInt($('cr-age').value) || 16;
+  const appearance = $('cr-appearance').value.trim() || '普通外貌';
+  const outfit = $('cr-outfit').value.trim() || '不起眼的便装';
+  const reason = $('cr-reason').value.trim() || '转学';
+
+  S.player = { name, gender, age, appearance, outfit, reason };
+  S.created = true;
+  S.phone.messages['未知号码'] = [{
+    from:'未知号码',
+    text:'你到了吗？松林谷车站。\n别相信任何人。\n——不要再回这条。',
+    t:now(), read:false
+  }];
+  S.phone.forum = [
+    { title:'[HOT] 12年级历史课来了个新人！照片速递！', body:'哇哦，今天历史课比玛莎的催眠曲有趣多了。来了个新人，看起来不像是我们这个星球的物种。有人知道底细吗？', author:'Quarterback_King_CB', time:'今天 10:23', replies:[
+      { author:'Chloe_Cheer_Queen', text:'别吓到人家啦。不过说真的，看起来就不怎么样🙄' },
+      { author:'RustyTrombone_Taylor', text:'楼上酸味都溢出屏幕了。我觉得挺酷的。' },
+      { author:'Anonymous_Bookworm', text:'玛莎让ta坐兰斯旁边了。我赌五美元，不出一个星期新人就会申请换座位。' }
+    ], read:false },
+    { title:'[DISCUSSION] 标准化测试又要来了', body:'SAT/ACT 冲刺营报名又开始了。有没有人一起去图书馆刷题？', author:'Future_Soldier_Zack', time:'今天 08:10', replies:[
+      { author:'Mechanic_Jess', text:'我爸说能修好一台V8引擎比SAT考满分有用多了。' },
+      { author:'Candi_Spills_Tea', text:'听说今年的数学题特别难，祝我们好运吧...🍀' }
+    ], read:false },
+    { title:'[OFF-TOPIC] 谁昨晚去森林矿坑那边了？', body:'凌晨三点左右，石溪上游传来的。不像郊狼，也不像风。', author:'Spooky_Derek', time:'今天 02:47', replies:[
+      { author:'Spooky_Derek', text:'我前几天解剖课上，从林场送来的鹿样本上发现了很奇怪的抓痕。🧐' },
+      { author:'FarmGirl_Beth', text:'别自己吓自己了。估计是郊狼。' },
+      { author:'Eastern_Curse_QSY', text:'非狼非狐，皮毛雪白…此乃凶兆。劝君远离。☯️' }
+    ], read:false }
+  ];
+
+  S.chatLog = [
+    { role:'narration', text:`2015 年 8 月，你抵达松林谷。
+
+长途巴士在镇口停下，扬起一层干燥的尘土。空气里混着潮湿的木头味、柴油味，还有石溪上游飘下来的一点铁锈气。路边的沃尔玛招牌亮着，再往里走，就是那所铁锈斑斑的高中。
+
+手机震了一下。一条来自未知号码的短信。
+
+“你到了吗？松林谷车站。别相信任何人。”
+
+——你没回。`, t:now() },
+    { role:'system', text:'提示：点左上角 ☰ 打开侧栏，可查看属性、短信、论坛、角色卡、线索板。在下方输入框写下你的行动。', t:now() }
+  ];
+  save();
+  $('create').classList.remove('show');
+  renderAll();
+}
+
+/* ==================== 渲染 ==================== */
+function renderAll(){
+  renderTop(); renderSidebar(); renderChat();
+  renderSMSList(); renderForum(); renderChars();
+  renderClues(); renderMap(); renderDiary();
+}
+
+function renderTop(){
+  $('tDay').textContent = S.day;
+  $('tTime').textContent = TIME_LABELS[S.timeIndex];
+  $('tMoney').textContent = S.stats.money;
+}
+
+function renderSidebar(){
+  const p = S.player, st = S.stats;
+  const pct = (v,m)=>Math.max(0,Math.min(100,(v/m)*100));
+  const unread = Object.values(S.phone.messages).reduce((a,ms)=>a+ms.filter(m=>m.from!=='me'&&!m.read).length,0);
+  const newPosts = S.phone.forum.filter(p=>!p.read).length;
+  const knownChars = Object.values(S.chars).filter(c=>c.known).length;
+
+  $('sidebar').innerHTML = `
+    <div class="side-head">
+      <div class="nm">${esc(p.name)}</div>
+      <div class="sub">${esc(p.gender)} · ${p.age}岁 · 第${S.day}天 ${TIME_LABELS[S.timeIndex]}</div>
+    </div>
+    <div class="side-body">
+      <div class="side-sec">
+        <h4>基本信息</h4>
+        <div class="kv"><span class="k">姓名</span><span class="v">${esc(p.name)}</span></div>
+        <div class="kv"><span class="k">性别</span><span class="v">${esc(p.gender)}</span></div>
+        <div class="kv"><span class="k">年龄</span><span class="v">${p.age}</span></div>
+        <div class="kv"><span class="k">来因</span><span class="v">${esc(p.reason)}</span></div>
+      </div>
+      <div class="side-sec">
+        <h4>外貌</h4>
+        <div style="font-size:12px;line-height:1.6;">${esc(p.appearance)}</div>
+      </div>
+      <div class="side-sec">
+        <h4>穿着</h4>
+        <div style="font-size:12px;line-height:1.6;">${esc(p.outfit)}</div>
+      </div>
+      <div class="side-sec">
+        <h4>状态</h4>
+        <div class="bar-row"><div class="bar-label"><span>精力</span><b>${Math.round(st.stamina)}/${st.maxStamina}</b></div><div class="bar stam"><i style="width:${pct(st.stamina,st.maxStamina)}%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>洞察</span><b>${Math.round(st.insight)}/${st.maxInsight}</b></div><div class="bar ins"><i style="width:${pct(st.insight,st.maxInsight)}%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>可疑度</span><b>${st.suspicion}%</b></div><div class="bar susp"><i style="width:${Math.min(100,st.suspicion)}%"></i></div></div>
+        <div class="kv"><span class="k">金钱</span><span class="v">$${st.money}</span></div>
+      </div>
+      <div class="side-sec">
+        <h4>功能</h4>
+        <div class="fn-list">
+          <button class="fn-btn" onclick="openPanel('panel-sms')"><span class="ic">📟</span><span>短信</span>${unread?`<span class="badge">${unread}</span>`:''}</button>
+          <button class="fn-btn" onclick="openPanel('panel-forum')"><span class="ic">📡</span><span>论坛 BBS</span>${newPosts?`<span class="badge">${newPosts}</span>`:''}</button>
+          <button class="fn-btn" onclick="openPanel('panel-chars')"><span class="ic">👥</span><span>角色卡</span>${knownChars?`<span class="badge">${knownChars}</span>`:''}</button>
+          <button class="fn-btn" onclick="openPanel('panel-clues')"><span class="ic">🔍</span><span>线索板</span>${S.clues.length?`<span class="badge">${S.clues.length}</span>`:''}</button>
+          <button class="fn-btn" onclick="openPanel('panel-map')"><span class="ic">🗺️</span><span>地图</span></button>
+          <button class="fn-btn" onclick="openPanel('panel-diary')"><span class="ic">📓</span><span>日记</span></button>
+          <button class="fn-btn" onclick="advanceTime()"><span class="ic">⏭️</span><span>推进时间</span></button>
+          <button class="fn-btn" onclick="openPanel('panel-save')"><span class="ic">💾</span><span>存档 / 读档</span></button>
+          <button class="fn-btn" onclick="openPanel('panel-settings')"><span class="ic">⚙️</span><span>设置</span></button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function openSide(){ $('sidebar').classList.add('open'); $('sideMask').classList.add('show'); }
+function closeSide(){ $('sidebar').classList.remove('open'); $('sideMask').classList.remove('show'); }
+
+function openPanel(id){
+  closeSide();
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
+  $(id).classList.add('show');
+  if(id==='panel-sms') renderSMSList();
+  if(id==='panel-forum') renderForum();
+  if(id==='panel-chars') renderChars();
+  if(id==='panel-clues') renderClues();
+  if(id==='panel-map') renderMap();
+  if(id==='panel-diary') renderDiary();
+  if(id==='panel-save') renderSaveList();
+}
+function closePanel(id){ $(id).classList.remove('show'); }
+
+/* ==================== 主对话流（酒馆风格） ==================== */
+function renderChat(){
+  const box = $('chat');
+  if(!S.chatLog || !S.chatLog.length){
+    box.innerHTML = '<div class="empty">还没有开始。在下方输入你的第一个行动。</div>';
+    return;
+  }
+  box.innerHTML = S.chatLog.map(m=>{
+    if(m.role==='narration')
+      return `<div class="mes" is_user="false"><div class="mes_block"><div class="ch_name"><span class="name_text">◈ 叙事</span><span class="timestamp">${fmtTime(m.t)}</span></div><div class="mes_text">${esc(m.text)}</div></div></div>`;
+    if(m.role==='player')
+      return `<div class="mes" is_user="true"><div class="mes_block"><div class="ch_name"><span class="name_text">▶ 你</span><span class="timestamp">${fmtTime(m.t)}</span></div><div class="mes_text">${esc(m.text)}</div></div></div>`;
+    if(m.role==='system')
+      return `<div class="mes system"><div class="mes_block"><div class="mes_text">${esc(m.text)}</div></div></div>`;
+    if(m.role==='thinking')
+      return `<div class="mes thinking" is_user="false"><div class="mes_block"><span class="dots"><i></i><i></i><i></i></span> AI 正在生成...</div></div>`;
+    return '';
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendChat(){
+  const inp = $('send_textarea');
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = ''; inp.style.height = 'auto';
+
+  S.chatLog.push({ role:'player', text, t:now() });
+  S.chatLog.push({ role:'thinking', t:now() });
+  save();
+  renderChat();
+
+  const context = S.chatLog
+    .filter(m=>m.role==='narration'||m.role==='player')
+    .slice(-10)
+    .map(m=>(m.role==='player'?'玩家：':'')+m.text)
+    .join('\n\n');
+
+  const reply = await callAI(
+    `【主剧情场景】
+玩家：${S.player.name}（${S.player.gender}，${S.player.age}岁，外貌：${S.player.appearance}，穿着：${S.player.outfit}，来因：${S.player.reason}）
+现在是第 ${S.day} 天 ${TIME_LABELS[S.timeIndex]}。
+
+最近剧情：
+${context}
+
+玩家行动：${text}
+
+请生成一段 200-400 字的沉浸式叙事，第二人称「你」，推进剧情或回应玩家行动。NPC 的反应要符合人设。如果玩家行动揭示新线索或接触新角色，在 JSON 返回 clue_add 或 char_update。`
+  );
+
+  S.chatLog = S.chatLog.filter(m=>m.role!=='thinking');
+  const replyText = reply.reply || '（没有回应）';
+  S.chatLog.push({ role:'narration', text:replyText, t:now() });
+  applyChanges(reply.state_changes);
+  if(reply.clue_add) addClue(reply.clue_add);
+  if(reply.char_update) updateChar(reply.char_update);
+  save();
+  renderChat(); renderSidebar(); renderTop();
+}
+
+/* ==================== 短信 ==================== */
+function renderSMSList(){
+  const box = $('sms-body');
+  if(!box) return;
+  const contacts = Object.keys(S.phone.messages);
+  if(!contacts.length){ box.innerHTML = '<div class="empty">没有任何消息。</div>'; return; }
+  box.innerHTML = contacts.map(name=>{
+    const ms = S.phone.messages[name];
+    const last = ms[ms.length-1];
+    const unread = ms.filter(m=>m.from!=='me'&&!m.read).length;
+    return `<div class="chat-item" onclick="openChat('${esc(name)}')">
+      <div class="av">${esc(name[0])}</div>
+      <div class="info">
+        <div class="nm">${esc(name)}${unread?` <span style="color:var(--danger);">(${unread})</span>`:''}</div>
+        <div class="pv">${esc((last.from==='me'?'我：':'')+last.text.replace(/\n/g,' ').slice(0,36))}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openChat(name){
+  closePanel('panel-sms');
+  openPanel('panel-chat');
+  $('chat-title').textContent = name;
+  const ms = S.phone.messages[name] || [];
+  ms.forEach(m=>m.read=true);
+  save();
+  const stream = $('sms-stream');
+  stream.innerHTML = ms.map(m=>`<div class="mes ${m.from==='me'?'is_user="true"':'is_user="false"'}" style="width:100%;"><div class="mes_block" style="max-width:80%;${m.from==='me'?'margin-left:auto;':''}"><div class="mes_text">${esc(m.text)}</div><div class="timestamp">${fmtTime(m.t)}</div></div></div>`).join('');
+  stream.scrollTop = stream.scrollHeight;
+  $('smsInput').dataset.target = name;
+}
+
+async function sendSMS(name){
+  if(!name) name = $('smsInput').dataset.target;
+  const inp = $('smsInput');
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = '';
+  if(!S.phone.messages[name]) S.phone.messages[name] = [];
+  S.phone.messages[name].push({ from:'me', text, t:now() });
+  save();
+  openChat(name);
+
+  const reply = await callAI(
+    `【短信场景】玩家（${S.player.name}）给 ${name} 发短信：「${text}」。以 ${name} 身份用短信口吻回复，简短、真实、2015 年美国高中生语气。第一次对话在 char_update 返回 { "name":"${name}", "known":true }。`
+  );
+  const replyText = reply.reply || '（无回复）';
+  S.phone.messages[name].push({ from:name, text:replyText, t:now() });
+  applyChanges(reply.state_changes);
+  if(reply.clue_add) addClue(reply.clue_add);
+  if(reply.char_update) updateChar(reply.char_update);
+  if(S.chars[name] && !S.chars[name].known) S.chars[name].known = true;
+  save();
+  openChat(name);
+  renderSidebar();
+}
+
+/* ==================== 论坛 ==================== */
+function renderForum(){
+  const box = $('forum-body');
+  if(!box) return;
+  const posts = S.phone.forum;
+  box.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);line-height:1.7;padding:12px;background:#141414;border:1px dashed #222;border-radius:6px;margin-bottom:12px;">
+      ▸ 松林谷匿名留言板 · 2015<br>
+      ▸ 当前在线：3 人（1 位隐身）<br>
+      ▸ 访问计数：000.${Math.floor(Math.random()*900)+100}
+    </div>
+    ${posts.length ? posts.map((p,i)=>`
+      <div class="forum-post" onclick="openThread(${i})">
+        <div class="pt">${esc(p.title)}</div>
+        <div class="pm"><span>#${i+1}</span><span>${esc(p.author)}</span><span>${esc(p.time)}</span><span>${p.replies.length} 回复</span></div>
+        <div class="pv">${esc(p.body.slice(0,90))}${p.body.length>90?'...':''}</div>
+      </div>
+    `).join('') : '<div class="empty">论坛还没有帖子。</div>'}`;
+}
+
+function openThread(i){
+  const p = S.phone.forum[i];
+  if(!p) return;
+  p.read = true; save();
+  closePanel('panel-forum');
+  openPanel('panel-thread');
+  $('thread-title').textContent = p.title.slice(0,22);
+  $('thread-body').innerHTML = `
+    <div class="forum-post" style="cursor:default;">
+      <div class="pt">${esc(p.title)}</div>
+      <div class="pm"><span>${esc(p.author)}</span><span>${esc(p.time)}</span></div>
+      <div class="pv" style="white-space:pre-wrap;">${esc(p.body)}</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin:14px 0 8px;letter-spacing:1px;">▸ 回复 (${p.replies.length})</div>
+    ${p.replies.map(r=>`<div class="reply"><div class="rn">${esc(r.author)}</div><div class="rc">${esc(r.text)}</div></div>`).join('')}
+    <div style="display:flex;gap:6px;margin-top:14px;">
+      <input id="replyInput-${i}" placeholder="回复这个帖子..." style="flex:1;">
+      <button class="primary" onclick="replyThread(${i})">回复</button>
+    </div>`;
+}
+
+async function replyThread(i){
+  const inp = $('replyInput-'+i);
+  if(!inp) return;
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = '';
+  const p = S.phone.forum[i];
+  p.replies.push({ author:S.player.name, text });
+  save(); openThread(i);
+
+  const reply = await callAI(
+    `【论坛场景】玩家（${S.player.name}）在帖子《${p.title}》下回复：「${text}」。生成 2-3 条其他用户跟帖，reply 字段，每行一条，格式："匿名ID：内容"。真实、mean、2015 美国高中生网感。`
+  );
+  if(reply.reply){
+    reply.reply.split('\n').filter(Boolean).forEach(line=>{
+      const idx = line.indexOf('：')>=0 ? line.indexOf('：') : line.indexOf(':');
+      if(idx>0) p.replies.push({ author:line.slice(0,idx).trim(), text:line.slice(idx+1).trim() });
+      else p.replies.push({ author:'匿名', text:line.trim() });
+    });
+  }
+  applyChanges(reply.state_changes);
+  if(reply.clue_add) addClue(reply.clue_add);
+  if(reply.char_update) updateChar(reply.char_update);
+  save(); openThread(i);
+}
+
+async function newPost(){
+  const title = prompt('帖子标题：');
+  if(!title) return;
+  const body = prompt('帖子内容：');
+  if(!body) return;
+  S.phone.forum.unshift({ title, body, author:S.player.name, time:'刚刚', replies:[], read:true });
+  save(); renderForum();
+
+  const reply = await callAI(
+    `【论坛场景】玩家在松林谷匿名论坛发新帖，标题《${title}》，内容：「${body}」。生成 3-4 条其他用户跟帖，reply 字段，每行一条，格式："匿名ID：内容"。真实、mean、有 2015 年美国高中生网感。`
+  );
+  if(reply.reply){
+    reply.reply.split('\n').filter(Boolean).forEach(line=>{
+      const idx = line.indexOf('：')>=0 ? line.indexOf('：') : line.indexOf(':');
+      if(idx>0) S.phone.forum[0].replies.push({ author:line.slice(0,idx).trim(), text:line.slice(idx+1).trim() });
+      else S.phone.forum[0].replies.push({ author:'匿名', text:line.trim() });
+    });
+  }
+  if(reply.clue_add) addClue(reply.clue_add);
+  if(reply.char_update) updateChar(reply.char_update);
+  save(); renderForum();
+}
+
+/* ==================== 角色卡 ==================== */
+function renderChars(){
+  const box = $('chars-body');
+  if(!box) return;
+  const all = Object.values(S.chars);
+  const known = all.filter(c=>c.known);
+  box.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);line-height:1.7;padding:12px;background:#141414;border:1px dashed #222;border-radius:6px;margin-bottom:12px;">
+      ▸ 已解锁：${known.length} / ${all.length} 人<br>
+      ▸ 好感度、怀疑度、破案程度随剧情动态变化。
+    </div>
+    ${known.length ? known.map(c=>`
+      <div class="char-card" onclick="openCharDetail('${esc(c.name)}')">
+        <div class="cc-head">
+          <div class="cc-av">${c.av}</div>
+          <div><div class="cc-name">${esc(c.name)}</div><div class="cc-tag">${esc(c.tag)}</div></div>
+        </div>
+        <div class="bar-row"><div class="bar-label"><span>好感</span><b>${c.goodwill}</b></div><div class="bar stam"><i style="width:${Math.max(0,Math.min(100,c.goodwill+50))}%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>怀疑</span><b>${c.suspicion}%</b></div><div class="bar susp"><i style="width:${Math.min(100,c.suspicion)}%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>破案程度</span><b>${c.progress}%</b></div><div class="bar ins"><i style="width:${Math.min(100,c.progress)}%"></i></div></div>
+      </div>
+    `).join('') : '<div class="empty">还没有结识任何角色。<br>通过短信、论坛、剧情解锁。</div>'}`;
+}
+
+function openCharDetail(name){
+  const c = S.chars[name];
+  if(!c) return;
+  closePanel('panel-chars');
+  openPanel('panel-char');
+  $('char-title').textContent = c.name;
+  $('char-body').innerHTML = `
+    <div class="char-card">
+      <div class="cc-head">
+        <div class="cc-av">${c.av}</div>
+        <div><div class="cc-name">${esc(c.name)}</div><div class="cc-tag">${esc(c.tag)}</div></div>
+      </div>
+      <div class="cc-sec">
+        <div class="lbl">▸ 关系状态</div>
+        <div class="bar-row"><div class="bar-label"><span>好感</span><b>${c.goodwill}</b></div><div class="bar stam"><i style="width:${Math.max(0,Math.min(100,c.goodwill+50))}%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>怀疑</span><b>${c.suspicion}%</b></div><div class="bar susp"><i style="width:${Math.min(100,c.suspicion)}%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>破案程度</span><b>${c.progress}%</b></div><div class="bar ins"><i style="width:${Math.min(100,c.progress)}%"></i></div></div>
+      </div>
+      <div class="cc-sec">
+        <div class="lbl">▸ 秘密 / 已知信息</div>
+        <div class="txt">${esc(c.secret || '尚未发现。')}</div>
+      </div>
+    </div>`;
+}
+
+function updateChar(up){
+  if(!up || !up.name) return;
+  const c = S.chars[up.name];
+  if(!c) return;
+  if(up.known) c.known = true;
+  if(typeof up.goodwill === 'number') c.goodwill = Math.max(-100, Math.min(100, c.goodwill + up.goodwill));
+  if(typeof up.suspicion === 'number') c.suspicion = Math.max(0, Math.min(100, c.suspicion + up.suspicion));
+  if(typeof up.progress === 'number') c.progress = Math.max(0, Math.min(100, c.progress + up.progress));
+  if(up.secret && up.secret !== c.secret) c.secret = up.secret;
+  save();
+}
+
+/* ==================== 线索 / 地图 / 日记 ==================== */
+function renderClues(){
+  const box = $('clues-body');
+  if(!box) return;
+  box.innerHTML = S.clues.length ? S.clues.map(c=>`
+    <div class="clue"><div class="ct">${esc(c.title)}</div><div class="cc">${esc(c.content)}</div></div>
+  `).join('') : '<div class="empty">还没有收集到线索。<br>和 NPC 多聊聊，或去论坛挖坟。</div>';
+}
+function addClue(c){
+  if(!c || !c.title) return;
+  if(S.clues.find(x=>x.title===c.title)) return;
+  S.clues.push({ title:c.title, content:c.content||'', t:now() });
+  save();
+}
+
+function renderMap(){
+  const box = $('map-body');
+  if(!box) return;
+  const places = [
+    { n:'铁锈轨高中', d:'镇上的唯一高中。走廊弥漫消毒水、旧书和潮湿气味。' },
+    { n:'圣安德鲁教堂', d:'中年人社交中心，某间祷告室锁着门。' },
+    { n:'废弃矿坑', d:'森林深处。白色传闻发源地。' },
+    { n:'终点站酒吧', d:'火车站对面，光线昏暗。' },
+    { n:'好时光理发店', d:'老弗兰克经营 40 年。' },
+    { n:'桑切斯墨西哥餐馆', d:'镇上唯一墨西哥菜。' },
+    { n:'石溪', d:'蜿蜒穿过小镇的小河。' },
+    { n:'《纪事报》办公室', d:'加里·帕尔默战斗的地方。' }
+  ];
+  box.innerHTML = `<div style="font-size:12px;color:var(--muted);line-height:1.7;padding:12px;background:#141414;border:1px dashed #222;border-radius:6px;margin-bottom:12px;">▸ 探索功能开发中。</div>` +
+    places.map(p=>`<div class="clue" style="border-left-color:var(--link);"><div class="ct" style="color:var(--link);">${esc(p.n)}</div><div class="cc">${esc(p.d)}</div></div>`).join('');
+}
+
+function renderDiary(){
+  const box = $('diary-body');
+  if(!box) return;
+  const evts = S.flags && S.flags.log ? S.flags.log : [];
+  box.innerHTML = `<div style="font-size:12px;color:var(--muted);line-height:1.7;padding:12px;background:#141414;border:1px dashed #222;border-radius:6px;margin-bottom:12px;">▸ 你在松林谷度过的时间记录。</div>` +
+    (evts.length ? evts.map(e=>`<div class="clue" style="border-left-color:var(--accent2);"><div class="ct" style="color:var(--accent2);">第 ${e.day} 天 · ${e.time}</div><div class="cc">${esc(e.text)}</div></div>`).join('') : '<div class="empty">还没有值得记下的事。</div>');
+}
+/* ==================== 存档系统 ==================== */
+function getSaves(){ return LS.get('pv_saves', []); }
+function setSaves(arr){ LS.set('pv_saves', arr); }
+
+function renderSaveList(){
+  const box = $('save-body');
+  if(!box) return;
+  const saves = getSaves().slice().sort((a,b)=>b.ts-a.ts);
+  box.innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="primary" style="flex:1;padding:10px;" onclick="createSave()">+ 新建存档</button>
+      <button style="padding:10px;" onclick="$('save-import').click()">导入</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.7;padding:10px;background:#141414;border:1px dashed #222;border-radius:6px;margin-bottom:12px;">
+      ▸ 共 ${saves.length} 个存档<br>
+      ▸ 存档保存在浏览器本地，清缓存会丢。
+    </div>
+    ${saves.length ? saves.map(s=>`
+      <div style="display:flex;gap:10px;padding:12px;background:#141414;border:1px solid #222;border-radius:8px;margin-bottom:8px;align-items:center;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;color:var(--accent);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name)}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">${new Date(s.ts).toLocaleString()}</div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          <button class="primary" style="padding:6px 10px;font-size:11px;" onclick="loadSave('${s.id}')">读</button>
+          <button style="padding:6px 10px;font-size:11px;" onclick="exportSave('${s.id}')">导出</button>
+          <button class="danger" style="padding:6px 10px;font-size:11px;" onclick="deleteSave('${s.id}')">删</button>
+        </div>
+      </div>
+    `).join('') : '<div class="empty">还没有存档。<br>点上方「+ 新建存档」。</div>'}
+    <input type="file" id="save-import" accept=".json" style="display:none;" onchange="importSaveFile(event)">
+  `;
+}
+
+function createSave(){
+  const def = '第' + S.day + '天 ' + TIME_LABELS[S.timeIndex] + ' · ' + S.player.name;
+  const name = prompt('存档名称：', def);
+  if(name === null) return;
+  const saves = getSaves();
+  saves.push({
+    id: 'save_' + now() + '_' + Math.random().toString(36).slice(2,6),
+    name: name.trim() || def,
+    ts: now(),
+    data: JSON.parse(JSON.stringify(S))
+  });
+  setSaves(saves);
+  renderSaveList();
+  alert('已存档。');
+}
+
+function loadSave(id){
+  if(!confirm('读取此存档？当前没保存的进度会丢。')) return;
+  const s = getSaves().find(x=>x.id===id);
+  if(!s){ alert('存档不存在。'); return; }
+  S = JSON.parse(JSON.stringify(s.data));
+  if(!Array.isArray(S.clues)) S.clues = [];
+  if(!S.phone) S.phone = { messages:{}, forum:[] };
+  if(!S.chars) S.chars = JSON.parse(JSON.stringify(DEF_CHARS));
+  else Object.keys(DEF_CHARS).forEach(k=>{ if(!S.chars[k]) S.chars[k] = JSON.parse(JSON.stringify(DEF_CHARS[k])); });
+  if(!S.flags) S.flags = {};
+  if(!Array.isArray(S.chatLog)) S.chatLog = [];
+  save();
+  closePanel('panel-save');
+  renderAll();
+  alert('已读取：' + s.name);
+}
+
+function deleteSave(id){
+  if(!confirm('删除此存档？无法恢复。')) return;
+  setSaves(getSaves().filter(x=>x.id!==id));
+  renderSaveList();
+}
+
+function exportSave(id){
+  const s = getSaves().find(x=>x.id===id);
+  if(!s) return;
+  const data = { type:'pinevalley-save', version:1, name:s.name, ts:s.ts, state:s.data };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pv-save-' + s.name.replace(/[\\/:*?"<>|]/g,'_') + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importSaveFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!data || data.type !== 'pinevalley-save' || !data.state){
+        alert('格式错误：不是松林谷存档文件。');
+        return;
+      }
+      const saves = getSaves();
+      saves.push({
+        id: 'save_' + now() + '_' + Math.random().toString(36).slice(2,6),
+        name: (data.name || '导入存档') + ' (导入)',
+        ts: now(),
+        data: data.state
+      });
+      setSaves(saves);
+      renderSaveList();
+      alert('已导入存档。');
+    }catch(err){ alert('解析失败：' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* ==================== 时间推进 ==================== */
+function advanceTime(){
+  S.timeIndex++;
+  if(S.timeIndex > 3){
+    S.timeIndex = 0; S.day++;
+    S.stats.stamina = S.stats.maxStamina;
+    S.stats.insight = Math.min(S.stats.maxInsight, S.stats.insight + 30);
+  }
+  if(!S.flags.log) S.flags.log = [];
+  S.flags.log.push({ day:S.day, time:TIME_LABELS[S.timeIndex], text:'时间推进至 '+TIME_LABELS[S.timeIndex]+'。' });
+  save();
+  renderTop(); renderSidebar(); closeSide();
+  maybeRandomEvent();
+}
+
+async function maybeRandomEvent(){
+  if(!settings.apiKey) return;
+  if(Math.random() < 0.55) return;
+  const pool = Object.values(S.chars).filter(c=>c.known);
+  if(!pool.length) return;
+  const c = pool[Math.floor(Math.random()*pool.length)];
+  if(!S.phone.messages[c.name]) S.phone.messages[c.name] = [];
+  const reply = await callAI(
+    `【随机事件】松林谷第 ${S.day} 天 ${TIME_LABELS[S.timeIndex]}。${c.name} 突然给玩家 ${S.player.name} 发短信。符合角色性格（${c.tag}）。JSON 返回，reply 字段为短信内容。`
+  );
+  if(reply.reply){
+    S.phone.messages[c.name].push({ from:c.name, text:reply.reply, t:now() });
+    if(reply.clue_add) addClue(reply.clue_add);
+    if(reply.char_update) updateChar(reply.char_update);
+    applyChanges(reply.state_changes);
+    save(); renderSidebar();
+  }
+}
+
+function applyChanges(c){
+  if(!c || typeof c!=='object') return;
+  const st = S.stats;
+  const num = v => typeof v==='number' && !isNaN(v);
+  if(num(c.stamina)) st.stamina = Math.max(0, Math.min(st.maxStamina, st.stamina + c.stamina));
+  if(num(c.insight)) st.insight = Math.max(0, Math.min(st.maxInsight, st.insight + c.insight));
+  if(num(c.money)) st.money = Math.max(0, st.money + c.money);
+  if(num(c.suspicion)) st.suspicion = Math.max(0, Math.min(100, st.suspicion + c.suspicion));
+  save();
+}
+
+/* ==================== AI ==================== */
+function getActivePreset(){ return presets.find(p=>p.id===activePresetId) || presets[0]; }
+
+function buildSystemPrompt(){
+  const stateStr = `第 ${S.day} 天 ${TIME_LABELS[S.timeIndex]}。
+玩家：${S.player.name}，${S.player.gender}，${S.player.age}岁。
+外貌：${S.player.appearance}。穿着：${S.player.outfit}。来因：${S.player.reason}。
+精力 ${Math.round(S.stats.stamina)}/${S.stats.maxStamina}，洞察 ${Math.round(S.stats.insight)}/${S.stats.maxInsight}，金钱 $${S.stats.money}，可疑度 ${S.stats.suspicion}%。
+已知线索：${S.clues.map(c=>c.title).join('、') || '无'}。
+已知角色：${Object.values(S.chars).filter(c=>c.known).map(c=>c.name).join('、') || '无'}。`;
+  const wbStr = worldbook.filter(w=>w.enabled).map(w=>`【${w.name}】${w.content}`).join('\n');
+  const p = getActivePreset();
+  return (p.system||'').replace(/\{\{state\}\}/g, stateStr).replace(/\{\{worldbook\}\}/g, wbStr);
+}
+
+async function callAI(userMessage){
+  if(!settings.apiKey){
+    return { reply:'[模拟模式] 请先在设置 ⚙ API 里填写接口地址和 Key。', state_changes:{}, clue_add:null, char_update:null };
+  }
+  try{
+    const res = await fetch(settings.apiUrl, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+settings.apiKey },
+      body: JSON.stringify({
+        model: settings.model,
+        messages: [
+          { role:'system', content: buildSystemPrompt() },
+          { role:'user', content: userMessage }
+        ],
+        temperature: getActivePreset().temperature || 0.85
+      })
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    let raw = json?.choices?.[0]?.message?.content || '';
+    raw = raw.trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+    const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+    if(a>=0 && b>a) raw = raw.slice(a,b+1);
+    try{ return JSON.parse(raw); }
+    catch(e){ return { reply:raw, state_changes:{}, clue_add:null, char_update:null }; }
+  }catch(err){
+    return { reply:'[连接失败] '+err.message, state_changes:{}, clue_add:null, char_update:null };
+  }
+}
+
+/* ==================== 弹窗 ==================== */
+function openModal(id){
+  if(id==='modal-api'){
+    $('cfg-url').value = settings.apiUrl;
+    $('cfg-key').value = settings.apiKey;
+    $('cfg-model').value = settings.model;
+    $('cfg-temp').value = getActivePreset().temperature || 0.85;
+  }
+  if(id==='modal-wb') renderWBList();
+  if(id==='modal-preset') renderPresetList();
+  if(id==='modal-theme') $('theme-css').value = LS.get('pv_theme_css','');
+  $(id).classList.add('show');
+}
+function closeModal(id){ $(id).classList.remove('show'); }
+function saveApi(){
+  settings.apiUrl = $('cfg-url').value.trim();
+  settings.apiKey = $('cfg-key').value.trim();
+  settings.model = $('cfg-model').value.trim() || 'gpt-4o-mini';
+  const t = parseFloat($('cfg-temp').value);
+  if(!isNaN(t)) getActivePreset().temperature = t;
+  save();
+  closeModal('modal-api');
+  alert('API 已保存。');
+}
+
+/* ==================== 世界书 ==================== */
+function renderWBList(){
+  $('wb-list').innerHTML = worldbook.map((w,i)=>`
+    <div style="background:#141414;border:1px solid #222;border-radius:6px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <input value="${esc(w.name)}" onchange="wbUpdate(${i},'name',this.value)" style="flex:1;font-size:12px;">
+        <label style="font-size:11px;color:#888;white-space:nowrap;"><input type="checkbox" ${w.enabled?'checked':''} onchange="wbUpdate(${i},'enabled',this.checked)"> 启用</label>
+        <button class="danger" style="padding:2px 8px;font-size:11px;" onclick="wbDelete(${i})">删</button>
+      </div>
+      <textarea rows="3" onchange="wbUpdate(${i},'content',this.value)" style="font-size:12px;">${esc(w.content)}</textarea>
+      <input value="${esc((w.keywords||[]).join(','))}" placeholder="关键词，逗号分隔" onchange="wbUpdate(${i},'keywords',this.value.split(',').map(s=>s.trim()).filter(Boolean))" style="margin-top:6px;font-size:12px;">
+    </div>
+  `).join('');
+}
+function wbUpdate(i,k,v){ worldbook[i][k]=v; save(); }
+function wbDelete(i){ if(confirm('删除？')){ worldbook.splice(i,1); save(); renderWBList(); } }
+function addWB(){ worldbook.push({ id:'wb'+now(), name:'新条目', enabled:true, constant:false, keywords:[], content:'' }); save(); renderWBList(); }
+
+function exportWB(){
+  const data = JSON.stringify({ entries: worldbook }, null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'pinevalley-worldbook.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importWB(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      let arr = null;
+      if(Array.isArray(data)) arr = data;
+      else if(data && Array.isArray(data.entries)) arr = data.entries;
+      else if(data && data.entries && typeof data.entries === 'object'){
+        arr = Object.keys(data.entries).map(k => {
+          const e = data.entries[k];
+          if(!e || typeof e !== 'object') return null;
+          return {
+            name: e.comment || (e.key && e.key[0]) || k,
+            enabled: !e.disable,
+            constant: !!e.constant,
+            keywords: e.key || [],
+            content: String(e.content || '').replace(/\{\{char\}\}/g,'').replace(/\{\{user\}\}/g,'')
+          };
+        }).filter(Boolean);
+      }
+      if(!arr || !arr.length){ alert('格式错误：未识别到世界书条目。'); return; }
+      arr.forEach(w=>{
+        if(!w.id) w.id = 'wb'+now()+Math.random();
+        if(typeof w.enabled !== 'boolean') w.enabled = true;
+        if(typeof w.constant !== 'boolean') w.constant = false;
+        if(!Array.isArray(w.keywords)) w.keywords = [];
+        if(typeof w.content !== 'string') w.content = '';
+        if(!w.name) w.name = '导入条目';
+        worldbook.push(w);
+      });
+      save(); renderWBList();
+      alert('已导入 '+arr.length+' 条世界书。');
+    }catch(err){ alert('解析失败：'+err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* ==================== 预设（多分组 + 酒馆格式导入） ==================== */
+function renderPresetList(){
+  const box = $('preset-list');
+  const groups = {};
+  presets.forEach(p=>{
+    const g = p.group || '未分组';
+    if(!groups[g]) groups[g] = [];
+    groups[g].push(p);
+  });
+  let html = '';
+  Object.keys(groups).forEach(gname=>{
+    html += `<div class="preset-group">▸ ${esc(gname)}</div>`;
+    html += groups[gname].map(p=>`
+      <div class="preset-item ${p.id===activePresetId?'active':''}">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+          <input value="${esc(p.name)}" onchange="presetUpdate('${p.id}','name',this.value)" style="flex:1;font-size:12px;">
+          <input value="${esc(p.group||'')}" placeholder="分组" onchange="presetUpdate('${p.id}','group',this.value)" style="width:90px;font-size:11px;">
+          ${p.id===activePresetId
+            ? '<span style="color:var(--accent);font-size:11px;white-space:nowrap;">● 使用中</span>'
+            : `<button style="padding:3px 10px;font-size:11px;" onclick="presetActivate('${p.id}')">启用</button>`}
+          <button class="danger" style="padding:3px 10px;font-size:11px;" onclick="presetDelete('${p.id}')">删</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+          <label style="font-size:11px;color:#888;">温度</label>
+          <input type="number" step="0.1" min="0" max="2" value="${p.temperature??0.85}" onchange="presetUpdate('${p.id}','temperature',parseFloat(this.value))" style="width:70px;font-size:11px;">
+        </div>
+        <textarea rows="6" onchange="presetUpdate('${p.id}','system',this.value)" style="font-size:11px;font-family:monospace;">${esc(p.system)}</textarea>
+      </div>
+    `).join('');
+  });
+  box.innerHTML = html || '<div class="empty">还没有预设。</div>';
+}
+function presetUpdate(id,k,v){ const p = presets.find(x=>x.id===id); if(p){ p[k]=v; save(); } }
+function presetActivate(id){ activePresetId = id; save(); renderPresetList(); }
+function presetDelete(id){
+  if(presets.length<=1) return alert('至少保留一个预设');
+  if(!confirm('删除？')) return;
+  presets = presets.filter(x=>x.id!==id);
+  if(activePresetId===id) activePresetId = presets[0].id;
+  save(); renderPresetList();
+}
+function addPreset(){
+  presets.push({
+    id:'p'+now(), group:'未分组', name:'新预设', temperature:0.85,
+    system: presets[0]?.system || '你是叙事AI。'
+  });
+  save(); renderPresetList();
+}
+
+function exportPresets(){
+  const data = JSON.stringify(presets, null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'pinevalley-presets.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+function importPresets(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      let arr = JSON.parse(ev.target.result);
+      if(!Array.isArray(arr) && arr && Array.isArray(arr.presets)) arr = arr.presets;
+      if(!Array.isArray(arr) && arr && Array.isArray(arr.prompts)){
+        const system = arr.prompts
+          .filter(p=>p && (p.role==='system' || p.name==='main' || p.name==='System Prompt') && p.content)
+          .map(p=>p.content).join('\n\n');
+        arr = [{
+          name: arr.name || '导入酒馆预设',
+          group: '酒馆导入',
+          temperature: arr.temperature ?? 0.85,
+          system: system || '（未提取到 system prompt）'
+        }];
+      }
+      if(!Array.isArray(arr)){ alert('格式错误：需要预设数组。'); return; }
+      arr.forEach(p=>{
+        if(!p.id) p.id = 'p'+now()+Math.random();
+        if(!p.name) p.name = '导入预设';
+        if(!p.group) p.group = '导入';
+        if(!p.system) p.system = '';
+        if(typeof p.temperature !== 'number') p.temperature = 0.85;
+        presets.push(p);
+      });
+      save(); renderPresetList();
+      alert('已导入 '+arr.length+' 个预设。');
+    }catch(err){
+      const txt = ev.target.result;
+      if(txt.trim()){
+        presets.push({ id:'p'+now(), group:'导入', name:'导入预设', temperature:0.85, system:txt });
+        save(); renderPresetList();
+        alert('已作为文本导入 1 个预设。');
+      } else alert('解析失败：'+err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* ==================== 美化 / 主题（酒馆兼容） ==================== */
+function applyTheme(){
+  const css = $('theme-css').value.trim();
+  const font = $('theme-font').value.trim();
+  LS.set('pv_theme_css', css);
+  LS.set('pv_theme_font', font);
+  let finalCSS = '';
+  if(font) finalCSS += `@import url("${font}");\n`;
+  finalCSS += css;
+  $('user-theme').textContent = finalCSS;
+  alert('主题已应用。');
+}
+
+function resetTheme(){
+  if(!confirm('重置主题？')) return;
+  LS.del('pv_theme_css');
+  LS.del('pv_theme_font');
+  $('theme-css').value = '';
+  $('theme-font').value = '';
+  $('user-theme').textContent = '';
+}
+
+function exportTheme(){
+  const data = {
+    name: 'Pine Valley Theme',
+    custom_css: $('theme-css').value,
+    font_url: $('theme-font').value
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'pinevalley-theme.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importTheme(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const raw = ev.target.result;
+    try{
+      const data = JSON.parse(raw);
+      if(data && data.custom_css){
+        $('theme-css').value = data.custom_css;
+        $('theme-font').value = data.font_url || '';
+        applyTheme();
+        alert('已导入酒馆主题 JSON（custom_css 字段）。');
+        return;
+      }
+    }catch(err){}
+    $('theme-css').value = raw;
+    applyTheme();
+    alert('已作为纯 CSS 导入。');
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function restoreTheme(){
+  const css = LS.get('pv_theme_css','');
+  const font = LS.get('pv_theme_font','');
+  let finalCSS = '';
+  if(font) finalCSS += `@import url("${font}");\n`;
+  finalCSS += css;
+  $('user-theme').textContent = finalCSS;
+}
+
+/* ==================== 重置 ==================== */
+function resetGame(){
+  if(!confirm('清空所有进度、重新建立角色档案？')) return;
+  S = JSON.parse(JSON.stringify(DEF_STATE));
+  S.created = false;
+  save();
+  $('intro').classList.add('hide');
+  $('create').classList.add('show');
+  document.querySelectorAll('.panel.show').forEach(p=>p.classList.remove('show'));
+  document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));
+}
+
+/* ==================== 启动 ==================== */
+document.addEventListener('DOMContentLoaded', () => {
+  restoreTheme();
+  runIntro();
+
+  document.querySelectorAll('.modal').forEach(m=>{
+    m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('show'); });
+  });
+
+  const ta = $('send_textarea');
+  ta.addEventListener('keydown', e => {
+    if(e.key==='Enter' && !e.shiftKey){
+      e.preventDefault();
+      sendChat();
+    }
+  });
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+  });
+
+  const sms = $('smsInput');
+  if(sms) sms.addEventListener('keydown', e => {
+    if(e.key==='Enter') sendSMS();
+  });
+});
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));
+    document.querySelectorAll('.panel.show').forEach(p=>p.classList.remove('show'));
+    closeSide();
+  }
+});
+</script>
+</body>
+</html>
