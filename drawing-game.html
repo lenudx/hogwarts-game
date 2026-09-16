@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>全世界画技退化，唯我独尊</title>
+<style>
+:root {
+  --bg: #0b0d16; --panel: #141829; --panel2: #1b2038; --border: #262d4a;
+  --gold: #d4af37; --gold2: #f0d060; --text: #dfe3f0; --muted: #7b839c;
+  --accent: #6b4fbb; --ok: #4caf7d; --bad: #e05a5a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+button, input, textarea { font-family: inherit; font-size: 13px; }
+button { cursor: pointer; border-radius: 8px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); padding: 7px 12px; transition: 0.15s; touch-action: manipulation; user-select: none; }
+button:active { transform: scale(0.96); }
+button.primary { background: linear-gradient(135deg, #6b4fbb, #8a5fd6); border-color: #8a5fd6; color: #fff; font-weight: 600; }
+button.danger { border-color: #5a2b2b; color: #e08a8a; }
+
+#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #171c30; border-bottom: 1px solid var(--border); gap: 8px; z-index: 10; }
+.logo { font-size: 14px; font-weight: 700; color: var(--gold2); white-space: nowrap; }
+.logo small { color: var(--muted); font-weight: 400; font-size: 10px; margin-left: 4px; }
+.tools { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.tools button { padding: 5px 8px; font-size: 11px; }
+
+main { flex: 1; display: flex; overflow: hidden; position: relative; }
+#sidebar { width: 240px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; padding: 10px; transition: 0.25s ease; z-index: 20; }
+#sidebar.hidden { transform: translateX(-100%); position: absolute; top: 0; bottom: 0; left: 0; box-shadow: 5px 0 20px rgba(0,0,0,0.5); }
+
+#main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#story { flex: 1; overflow-y: auto; padding: 16px; }
+#story::-webkit-scrollbar { width: 5px; }
+#story::-webkit-scrollbar-thumb { background: #2c3352; border-radius: 4px; }
+
+.msg { max-width: 92%; margin-bottom: 14px; line-height: 1.75; animation: fadeIn 0.3s ease; word-break: break-word; white-space: pre-wrap; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.msg.assistant { margin-right: auto; background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 4px 12px 12px 4px; padding: 12px 14px; }
+.msg.user { margin-left: auto; background: linear-gradient(135deg, #2b2450, #1f1b3a); border: 1px solid #3d3466; border-radius: 12px 4px 4px 12px; padding: 10px 14px; }
+.msg.system { margin: 0 auto; text-align: center; font-size: 12px; color: #e0a15a; background: #2a1f14; border: 1px solid #4a3620; border-radius: 8px; padding: 6px 12px; max-width: 95%; }
+
+#options { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 0 16px 8px; max-height: 120px; overflow-y: auto; }
+#options button { text-align: left; padding: 8px 12px 8px 28px; background: var(--panel); border-color: #2e3557; position: relative; font-size: 12px; }
+#options button::before { content: "▸"; position: absolute; left: 10px; color: var(--gold); opacity: 0.7; }
+#input-bar { flex-shrink: 0; display: flex; gap: 8px; padding: 8px 12px 12px; background: var(--panel); border-top: 1px solid var(--border); align-items: flex-end; }
+#user-input { flex: 1; min-height: 40px; max-height: 100px; line-height: 1.5; padding: 10px; background: #0e1120; border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none; resize: none; }
+#user-input:focus { border-color: var(--accent); }
+#send-btn { height: 40px; flex-shrink: 0; padding: 0 16px; }
+
+.card { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+.card h4 { font-size: 10px; color: var(--gold); letter-spacing: 1px; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; }
+.kv { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; gap: 8px; }
+.kv .k { color: var(--muted); flex-shrink: 0; }
+.kv .v { text-align: right; word-break: break-all; }
+.bar-row { margin: 6px 0; }
+.bar-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+.bar { height: 6px; background: #0a0d18; border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.bar.insp > i { background: linear-gradient(90deg, #b068d6, #dda0ff); }
+.bar.stam > i { background: linear-gradient(90deg, #3f9e6b, #6fdca0); }
+.tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 20px; background: #232a45; border: 1px solid var(--border); margin: 2px 2px 2px 0; }
+.rel { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; }
+.rel .v.pos { color: var(--ok); } .rel .v.neg { color: var(--bad); }
+
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 100; padding: 12px; }
+.modal.show { display: flex; }
+.modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--border); }
+.modal-head h3 { font-size: 14px; color: var(--gold2); }
+.modal-body { overflow-y: auto; padding: 14px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.field input, .field textarea { width: 100%; padding: 8px; background: #0e1120; border: 1px solid var(--border); border-radius: 6px; color: var(--text); outline: none; }
+.field textarea { resize: vertical; font-family: monospace; font-size: 12px; }
+.field input:focus, .field textarea:focus { border-color: var(--accent); }
+
+.loading { display: flex; gap: 4px; align-items: center; padding: 12px 14px; }
+.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: bounce 1.3s infinite; }
+.dot:nth-child(2) { animation-delay: 0.18s; } .dot:nth-child(3) { animation-delay: 0.36s; }
+@keyframes bounce { 0%, 60%, 100% { opacity: 0.25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
+
+@media (min-width: 821px) {
+  .only-mobile { display: none; }
+  #sidebar { position: static; transform: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="logo">🎨 画技退化 <small>唯我独尊</small></div>
+    <div class="tools">
+      <button class="only-mobile" onclick="window.toggleSidebar()">☰</button>
+      <button onclick="window.openModal('modal-api')">⚙ API</button>
+      <button onclick="window.openModal('modal-world')">📖 世界书</button>
+      <button onclick="window.openModal('modal-preset')">🎭 预设</button>
+      <button class="danger" onclick="window.resetGame()">↺ 重开</button>
+    </div>
+  </header>
+
+  <main>
+    <aside id="sidebar" class="hidden">
+      <div class="card">
+        <div class="kv"><span class="k">姓名</span><span class="v" id="ui-name">你</span></div>
+        <div class="kv"><span class="k">身份</span><span class="v" id="ui-identity">最后的画神</span></div>
+      </div>
+      <div class="card">
+        <h4>当前</h4>
+        <div class="kv"><span class="k">场景</span><span class="v" id="ui-scene">-</span></div>
+        <div class="kv"><span class="k">时间</span><span class="v" id="ui-time">-</span></div>
+      </div>
+      <div class="card">
+        <h4>状态</h4>
+        <div class="bar-row"><div class="bar-label"><span>灵感</span><span id="ui-mana-t">0/100</span></div><div class="bar insp"><i id="ui-mana-b" style="width:0%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>精力</span><span id="ui-stam-t">0/100</span></div><div class="bar stam"><i id="ui-stam-b" style="width:0%"></i></div></div>
+        <div class="kv"><span class="k">金钱</span><span class="v" id="ui-galleons">💰 0</span></div>
+      </div>
+      <div class="card"><h4>随身物品</h4><div id="ui-inventory"><span class="empty" style="color:#5c6379;font-size:11px">空空如也</span></div></div>
+      <div class="card"><h4>社会关系</h4><div id="ui-relations"><span class="empty" style="color:#5c6379;font-size:11px">尚无羁绊</span></div></div>
+    </aside>
+
+    <div id="main-content">
+      <div id="story"></div>
+      <div id="options"></div>
+      <div id="input-bar">
+        <textarea id="user-input" rows="1" placeholder="你准备画什么？或者做什么？（Enter 发送）"></textarea>
+        <button class="primary" id="send-btn" onclick="window.onSend()">发送</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="modal-api">
+  <div class="modal-box">
+    <div class="modal-head"><h3>API 设置</h3><button onclick="window.closeModal('modal-api')">关闭</button></div>
+    <div class="modal-body">
+      <div class="field"><label>接口地址（完整 URL）</label><input id="cfg-url" placeholder="https://api.example.com/v1/chat/completions"><div style="font-size:11px;color:#5c6379;margin-top:4px">兼容 OpenAI 格式即可</div></div>
+      <div class="field"><label>API Key</label><input id="cfg-key" type="password" placeholder="sk-..."></div>
+      <div class="field"><label>模型名</label><input id="cfg-model" placeholder="gpt-4o-mini"></div>
+      <div class="field"><label>温度 (0~2)</label><input id="cfg-temp" type="number" step="0.1" min="0" max="2"></div>
+      <button class="primary" style="width:100%;padding:10px" onclick="window.saveApiConfig()">保存 API 设置</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-world">
+  <div class="modal-box">
+    <div class="modal-head"><h3>世界书</h3><button class="primary" onclick="window.addWorldEntry()">+ 新增</button><button onclick="window.closeModal('modal-world')">关闭</button></div>
+    <div class="modal-body"><div id="world-list"></div></div>
+  </div>
+</div>
+
+<div class="modal" id="modal-preset">
+  <div class="modal-box">
+    <div class="modal-head"><h3>AI 预设</h3><button class="primary" onclick="window.addPreset()">+ 新增</button><button onclick="window.closeModal('modal-preset')">关闭</button></div>
+    <div class="modal-body"><div id="preset-list"></div></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const uid = () => Math.random().toString(36).slice(2,10);
+// 注意：这里所有的存储键都加了 art_ 前缀，完全独立于之前的霍格沃茨文件
+const LS = { get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }, set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
+
+const DEFAULT_SETTINGS = { apiUrl: 'https://api.openai.com/v1/chat/completions', apiKey: '', model: 'gpt-4o-mini', temperature: 0.9, activePresetId: 'p_default' };
+const DEFAULT_PRESETS = [{
+  id: 'p_default', name: '画技退化 GM', temperature: 0.9,
+  system: `你是“世界画技退化”模拟器的游戏主持人（GM），为玩家运行一场沉浸式现代都市超现实文字冒险。
+
+# 世界观
+- 时间：2026年，平行现代世界。
+- 背景：一夜之间，全世界所有人类（除了玩家）的绘画能力、审美、手眼协调能力永久性退化了一万倍。
+- 现在世界上所有人画出来的东西都像三岁小孩的胡乱涂鸦（甚至连直线都画不直），所有数字绘画软件、AI绘画工具、实体画廊全部崩溃。人类失去了“画得像”的能力。
+- 玩家是全世界唯一一个画技保持正常（甚至可能是顶级）的人。玩家画出来的东西，在这个世界的人眼中是“神迹”、“难以理解的高级艺术”、“超越人类认知的美丽”。
+
+# 主持原则
+1. 用第二人称“你”叙述，沉浸感极强。
+2. 突出反差爽感：你随手画个火柴人/苹果，周围的人会震撼到失语、下跪、惊呼“这不可能！”。
+3. 不要替玩家做决定。玩家可以发朋友圈、开直播、卖画、去大街上画速写。要合理呈现外界的反应（如资本追逐、官方下场、AI公司崩溃、狂热粉丝、学术界的震撼）。
+4. NPC包括：震惊的网友、疯狂的艺术品买家、试图研究你的科学家、崩溃的画家、可能想绑架你的神秘组织。
+5. 维持现代都市的网感和荒诞感，不要出现魔法、超能力等不符合设定的元素。
+
+# 当前玩家状态
+{{state}}
+
+# 相关设定（世界书）
+{{worldbook}}
+
+# 输出格式（极其重要）
+你必须只输出一个合法的 JSON 对象，不要输出任何其他文字，不要用 markdown 代码块包裹。
+格式如下：
+{
+  "narration": "剧情叙述正文，第二人称，200~400字，突出反差和震惊",
+  "state_changes": {
+    "mana": -5,
+    "stamina": -3,
+    "galleons": 1000,
+    "scene": "市中心广场·现场作画",
+    "time": "2026年5月20日 · 下午",
+    "inventory_add": ["围观群众送的奶茶"],
+    "relations": {"震惊的网友": 10, "疯狂买家": 5},
+    "flags": {"第一次直播": true}
+  },
+  "options": ["打开直播画个素描", "把画拍下来发朋友圈", "跟围观群众说这只是我随便画的"]
+}
+
+说明：
+- state_changes 所有字段均可选，没变化就省略；数值字段表示「增量」，正数为增加。
+- 数值字段：mana（灵感）、stamina（精力）、galleons（金钱）。
+- 可用的字符串字段：scene、time、identity。
+- options 提供 2~4 个符合当前情境的短期行动建议，每条不超过 15 字。`
+}];
+
+const DEFAULT_WORLDBOOK = [
+  { id: uid(), name: '世界画技退化事件', enabled: true, constant: true, order: 0, keywords: [], content: '发生时间：2026年5月19日深夜，全世界70亿人一夜之间画技归零。现状：人们无法画出任何具象图形，画直线像蚯蚓，画圆像土豆。所有美术培训机构倒闭，美术学院变成笑话，插画师失业，AI绘画公司因为数据库全是乱码而破产。媒体每天都在播报“人类艺术已死”，直到有人发现世界上竟然还有一个人能画出正常的东西。' },
+  { id: uid(), name: '网络舆论', enabled: true, constant: false, order: 1, keywords: ['直播', '微博', '朋友圈', '网友', '热搜'], content: '玩家只要在网上发布哪怕一张极其简单的画，都会瞬间引爆热搜。网友评论画风：“这到底是什么外星科技？”、“看一眼我的大脑就要长出来了”、“跪求大师开班”。玩家被网友封为“最后的画神”、“人类艺术救世主”。' }
+];
+
+const DEFAULT_STATE = {
+  name: '你', identity: '最后的画神', scene: '你家卧室', time: '2026年5月20日 · 清晨',
+  stats: { mana: 100, maxMana: 100, stamina: 100, maxStamina: 100, galleons: 5000 },
+  inventory: ['手机', '素描本', '铅笔'], relations: {}, flags: {}
+};
+
+// 全局变量（使用 art_ 前缀与霍格沃茨文件隔离）
+let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get('art_settings', {}));
+let presets = LS.get('art_presets', DEFAULT_PRESETS);
+let worldbook = LS.get('art_worldbook', DEFAULT_WORLDBOOK);
+let gameState = LS.get('art_state', JSON.parse(JSON.stringify(DEFAULT_STATE)));
+let history = LS.get('art_history', []);
+let displayHistory = LS.get('art_display', []);
+let busy = false;
+
+window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
+window.openModal = (id) => { 
+  if(id === 'modal-api') fillApiForm();
+  if(id === 'modal-world') renderWorldList();
+  if(id === 'modal-preset') renderPresetList();
+  $(id).classList.add('show'); 
+};
+window.closeModal = (id) => $(id).classList.remove('show');
+
+window.renderStatus = () => {
+  const s = gameState, st = s.stats;
+  $('ui-name').textContent = s.name;
+  $('ui-identity').textContent = s.identity;
+  $('ui-scene').textContent = s.scene;
+  $('ui-time').textContent = s.time;
+  $('ui-mana-t').textContent = Math.round(st.mana) + '/' + st.maxMana;
+  $('ui-mana-b').style.width = clamp(st.mana / st.maxMana * 100, 0, 100) + '%';
+  $('ui-stam-t').textContent = Math.round(st.stamina) + '/' + st.maxStamina;
+  $('ui-stam-b').style.width = clamp(st.stamina / st.maxStamina * 100, 0, 100) + '%';
+  $('ui-galleons').textContent = '💰 ' + st.galleons;
+  
+  $('ui-inventory').innerHTML = s.inventory.length ? s.inventory.map(i => `<span class="tag">${esc(i)}</span>`).join('') : '<span style="color:#5c6379;font-size:11px">空空如也</span>';
+  $('ui-relations').innerHTML = Object.keys(s.relations).length ? Object.entries(s.relations).map(([k,v]) => `<div class="rel"><span>${esc(k)}</span><span class="v ${v>=0?'pos':'neg'}">${v>=0?'+':''}${v}</span></div>`).join('') : '<span style="color:#5c6379;font-size:11px">尚无羁绊</span>';
+};
+
+function makeMsgEl(role, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.textContent = text;
+  return d;
+}
+
+window.renderStory = () => {
+  const box = $('story'); box.innerHTML = '';
+  displayHistory.forEach(m => box.appendChild(makeMsgEl(m.role, m.text)));
+  requestAnimationFrame(() => box.scrollTop = box.scrollHeight);
+};
+
+window.pushDisplay = (role, text) => {
+  displayHistory.push({ role, text });
+  if (displayHistory.length > 200) displayHistory = displayHistory.slice(-200);
+  $('story').appendChild(makeMsgEl(role, text));
+  $('story').scrollTop = $('story').scrollHeight;
+  LS.set('art_display', displayHistory);
+};
+
+window.renderOptions = (opts) => {
+  const box = $('options'); box.innerHTML = '';
+  (opts || []).forEach(o => {
+    const b = document.createElement('button');
+    b.textContent = o;
+    b.onclick = () => { box.innerHTML = ''; window.sendAction(o); };
+    box.appendChild(b);
+  });
+};
+
+window.showLoading = () => {
+  window.hideLoading();
+  const d = document.createElement('div');
+  d.className = 'msg assistant loading'; d.id = 'loading-msg';
+  d.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+  $('story').appendChild(d); $('story').scrollTop = $('story').scrollHeight;
+};
+window.hideLoading = () => { const e = $('loading-msg'); if (e) e.remove(); };
+
+window.fillApiForm = () => {
+  $('cfg-url').value = settings.apiUrl;
+  $('cfg-key').value = settings.apiKey;
+  $('cfg-model').value = settings.model;
+  $('cfg-temp').value = settings.temperature;
+};
+window.saveApiConfig = () => {
+  settings.apiUrl = $('cfg-url').value.trim();
+  settings.apiKey = $('cfg-key').value.trim();
+  settings.model = $('cfg-model').value.trim() || 'gpt-4o-mini';
+  settings.temperature = parseFloat($('cfg-temp').value) || 0.9;
+  LS.set('art_settings', settings);
+  window.closeModal('modal-api');
+  window.pushDisplay('system', '✓ API 配置已保存');
+};
+
+window.renderWorldList = () => {
+  const box = $('world-list');
+  box.innerHTML = worldbook.map(e => `
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+        <input style="flex:1" value="${esc(e.name)}" onchange="window.wbUpdate('${e.id}','name',this.value)">
+        <label style="font-size:11px;color:#7b839c;white-space:nowrap"><input type="checkbox" ${e.enabled?'checked':''} onchange="window.wbUpdate('${e.id}','enabled',this.checked)"> 启用</label>
+        <label style="font-size:11px;color:#7b839c;white-space:nowrap"><input type="checkbox" ${e.constant?'checked':''} onchange="window.wbUpdate('${e.id}','constant',this.checked)"> 常驻</label>
+        <button class="danger" style="padding:2px 6px" onclick="window.wbDelete('${e.id}')">删</button>
+      </div>
+      <input style="width:100%;margin-bottom:6px" value="${esc((e.keywords||[]).join(','))}" placeholder="触发关键词，逗号分隔" onchange="window.wbUpdate('${e.id}','keywords',this.value.split(',').map(s=>s.trim()).filter(Boolean))">
+      <textarea style="width:100%" rows="3" onchange="window.wbUpdate('${e.id}','content',this.value)">${esc(e.content)}</textarea>
+    </div>
+  `).join('');
+};
+window.wbUpdate = (id, key, val) => { const e = worldbook.find(x => x.id === id); if (e) { e[key] = val; LS.set('art_worldbook', worldbook); } };
+window.wbDelete = (id) => { if(confirm('确定删除？')) { worldbook = worldbook.filter(x => x.id !== id); LS.set('art_worldbook', worldbook); window.renderWorldList(); } };
+window.addWorldEntry = () => { worldbook.push({ id: uid(), name: '新条目', enabled: true, constant: false, keywords: [], content: '' }); LS.set('art_worldbook', worldbook); window.renderWorldList(); };
+
+window.renderPresetList = () => {
+  const box = $('preset-list');
+  box.innerHTML = presets.map(p => `
+    <div class="card" style="margin-bottom:10px; ${p.id === settings.activePresetId ? 'border-color:#d4af37;' : ''}">
+      <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+        <input style="flex:1" value="${esc(p.name)}" onchange="window.presetUpdate('${p.id}','name',this.value)">
+        ${p.id === settings.activePresetId ? '<span style="color:#d4af37;font-size:11px">使用中</span>' : `<button style="padding:2px 6px" onclick="window.presetActivate('${p.id}')">启用</button>`}
+        <button class="danger" style="padding:2px 6px" onclick="window.presetDelete('${p.id}')">删</button>
+      </div>
+      <textarea style="width:100%;font-size:11px;font-family:monospace" rows="10" onchange="window.presetUpdate('${p.id}','system',this.value)">${esc(p.system)}</textarea>
+    </div>
+  `).join('');
+};
+window.presetUpdate = (id, key, val) => { const p = presets.find(x => x.id === id); if(p) { p[key] = val; LS.set('art_presets', presets); } };
+window.presetActivate = (id) => { settings.activePresetId = id; LS.set('art_settings', settings); window.renderPresetList(); };
+window.presetDelete = (id) => { if(presets.length<=1) return alert('至少保留一个'); if(confirm('确定删除？')) { presets = presets.filter(x => x.id !== id); if(settings.activePresetId===id) settings.activePresetId = presets[0].id; LS.set('art_presets', presets); LS.set('art_settings', settings); window.renderPresetList(); } };
+window.addPreset = () => { presets.push({ id: uid(), name: '新预设', temperature: 0.9, system: presets[0].system }); LS.set('art_presets', presets); window.renderPresetList(); };
+
+function recentContext(extra='') { return displayHistory.slice(-8).map(m => m.text).join('\n') + '\n' + (extra||''); }
+function matchWorldbook(text) {
+  const hits = [];
+  worldbook.forEach(e => { if(!e.enabled) return; if(e.constant) { hits.push(e); return; } if((e.keywords||[]).some(k => k && text.includes(k.trim()))) hits.push(e); });
+  hits.sort((a,b)=>(a.order||0)-(b.order||0));
+  return hits.length ? hits.map(e => `【${e.name}】\n${e.content}`).join('\n\n') : '（本次没有触发额外设定）';
+}
+function formatState() {
+  const s = gameState, st = s.stats;
+  return `姓名：${s.name}\n身份：${s.identity}\n当前场景：${s.scene}\n游戏内时间：${s.time}\n灵感：${Math.round(st.mana)}/${st.maxMana}\n精力：${Math.round(st.stamina)}/${st.maxStamina}\n金钱：${st.galleons}\n随身物品：${s.inventory.join('、')||'无'}\n社会关系：${Object.entries(s.relations).map(([k,v])=>`${k}(${v>=0?'+':''}${v})`).join('、')||'无'}`;
+}
+function buildSystemPrompt(extra='') {
+  const p = presets.find(x => x.id === settings.activePresetId) || presets[0];
+  return p.system.replace(/\{\{state\}\}/g, formatState()).replace(/\{\{worldbook\}\}/g, matchWorldbook(recentContext(extra)));
+}
+
+window.onSend = () => {
+  const el = $('user-input');
+  const v = el.value.trim();
+  if(!v || busy) return;
+  el.value = ''; el.style.height = 'auto';
+  window.sendAction(v);
+};
+
+window.sendAction = async (text) => {
+  if(busy) return;
+  busy = true;
+  $('send-btn').disabled = true;
+  $('user-input').disabled = true;
+  $('options').innerHTML = '';
+
+  window.pushDisplay('user', text);
+  history.push({ role: 'user', content: text });
+  const messages = [{ role: 'system', content: buildSystemPrompt(text) }, ...history.slice(-10)];
+
+  window.showLoading();
+
+  try {
+    let raw;
+    if (!settings.apiKey) {
+      await new Promise(r => setTimeout(r, 800));
+      raw = JSON.stringify({
+        narration: `[模拟模式] 你刚才尝试了：“${text}”。\n\n由于你还没有填写 API 密钥，这是系统模拟的回复。\n\n去点右上角的 ⚙ API 填上你的中转站和 Key，就能接入真正的 AI 了！`,
+        state_changes: { mana: -5, stamina: -5, scene: "你家卧室" },
+        options: ["去填写 API", "继续随便试试"]
+      });
+    } else {
+      const res = await fetch(settings.apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + settings.apiKey },
+        body: JSON.stringify({ model: settings.model, messages, temperature: settings.temperature })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const json = await res.json();
+      raw = json?.choices?.[0]?.message?.content;
+      if (!raw) throw new Error('接口返回格式异常');
+    }
+
+    window.hideLoading();
+    history.push({ role: 'assistant', content: raw });
+    LS.set('art_history', history);
+
+    let s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+    const a = s.indexOf('{'), b = s.lastIndexOf('}');
+    if (a >= 0 && b > a) s = s.slice(a, b + 1);
+    
+    let data;
+    try { data = JSON.parse(s); } catch(e) { data = { narration: raw, state_changes: {}, options: [] }; }
+
+    window.pushDisplay('assistant', data.narration || data.text || '（无叙述）');
+    
+    if (data.state_changes) {
+      const c = data.state_changes, st = gameState.stats;
+      if (typeof c.mana === 'number') st.mana = clamp(st.mana + c.mana, 0, st.maxMana);
+      if (typeof c.stamina === 'number') st.stamina = clamp(st.stamina + c.stamina, 0, st.maxStamina);
+      if (typeof c.galleons === 'number') st.galleons = Math.max(0, st.galleons + c.galleons);
+      if (c.scene) gameState.scene = c.scene;
+      if (c.time) gameState.time = c.time;
+      if (c.identity) gameState.identity = c.identity;
+      if (Array.isArray(c.inventory_add)) c.inventory_add.forEach(i => { if(!gameState.inventory.includes(i)) gameState.inventory.push(i); });
+      if (c.relations) for(const [k,v] of Object.entries(c.relations)) { gameState.relations[k] = (gameState.relations[k]||0) + v; }
+      LS.set('art_state', gameState);
+      window.renderStatus();
+    }
+    window.renderOptions(data.options);
+  } catch(err) {
+    window.hideLoading();
+    window.pushDisplay('system', '⚠ ' + err.message);
+    history.pop(); LS.set('art_history', history);
+  } finally {
+    busy = false;
+    $('send-btn').disabled = false;
+    $('user-input').disabled = false;
+  }
+};
+
+window.resetGame = () => {
+  if(!confirm('确定要清空进度重新开始吗？')) return;
+  gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  history = []; displayHistory = [];
+  LS.set('art_state', gameState); LS.set('art_history', history); LS.set('art_display', displayHistory);
+  window.renderStatus(); window.renderStory(); window.renderOptions([]);
+  window.sendAction('（游戏开始）我昨晚睡了一觉，现在醒了，感觉世界有点不对劲。请描述我醒来后，发现手机上的热搜全是“人类艺术已死”、“所有人都画不出直线了”，而我随手在素描本上画了一个完美的苹果，作为故事的开场。');
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  window.renderStatus();
+  window.renderStory();
+  if(displayHistory.length === 0) {
+    if(settings.apiKey) window.sendAction('（游戏开始）我昨晚睡了一觉，现在醒了，感觉世界有点不对劲。请描述我醒来后，发现手机上的热搜全是“人类艺术已死”、“所有人都画不出直线了”，而我随手在素描本上画了一个完美的苹果，作为故事的开场。');
+    else window.pushDisplay('system', '👋 欢迎！先点右上角「⚙ API」填好设置，再点「↺ 重开」开始游戏。\n（如果没填 API，点击发送也可以进入模拟模式测试按钮）');
+  }
+  const ta = $('user-input');
+  ta.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); window.onSend(); } });
+});
+</script>
+</body>
+</html>
