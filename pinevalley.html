@@ -1237,7 +1237,11 @@ async function callAI(userMessage){
         temperature: getActivePreset().temperature || 0.85
       })
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    if(!res.ok){
+  let detail = '';
+  try { detail = await res.text(); } catch(e){}
+  throw new Error('HTTP ' + res.status + ' · ' + detail.slice(0, 300));
+}
     const json = await res.json();
     let raw = json?.choices?.[0]?.message?.content || '';
     raw = raw.trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
