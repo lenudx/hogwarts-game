@@ -604,7 +604,6 @@ function ensureVersions(m) {
 }
 
 window.pushDisplay = (role, text) => {
-  window.pushDisplay = (role, text) => {
   const entry = { role, versions: [text], activeVersion: 0, t: Date.now() };
   displayHistory.push(entry);
   if (displayHistory.length > 200) displayHistory = displayHistory.slice(-200);
