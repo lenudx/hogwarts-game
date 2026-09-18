@@ -493,7 +493,7 @@ const LS = { get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.
 // ==================== 默认数据 ====================
 const DEFAULT_STATE = {
   name: '你', house: '未分院', year: 1, scene: '霍格沃茨特快列车', time: '1991年9月1日 · 上午',
-  stats: { mana: 100, maxMana: 100, stamina: 100, maxStamina: 100, galleons: 12 },
+  stats: { mana: 100, maxMana: 100, stamina: 100, maxStamina: 100, galleons: 12, sickles: 0, knuts: 0, lastGalleons: 0, lastSickles: 0, lastKnuts: 0, outfit: '', mood: '' },
   inventory: ['校服', '课本'], relations: {}, flags: {}, actors: ['你']
 };
 
@@ -736,8 +736,15 @@ window.showMesMenu = (idx) => {
   const title = $('msg-menu-title');
   if (title) {
     const verCount = m.versions ? m.versions.length : 1;
-    title.textContent = '◈ 叙事 · 第 ' + ((m.activeVersion || 0) + 1) + ' / ' + verCount + ' 版';
+    if (m.role === 'user') {
+      title.textContent = '◈ 你的消息 · 第 ' + ((m.activeVersion || 0) + 1) + ' / ' + verCount + ' 版';
+    } else {
+      title.textContent = '◈ 叙事 · 第 ' + ((m.activeVersion || 0) + 1) + ' / ' + verCount + ' 版';
+    }
   }
+  // 只有 AI 叙事才显示"再说一个"
+  const regenBtn = $('msg-menu-overlay').querySelector('button[onclick*="menuRegen"]');
+  if (regenBtn) regenBtn.style.display = (m.role === 'assistant') ? 'block' : 'none';
   $('msg-menu-overlay').classList.add('show');
 };
 
@@ -1081,7 +1088,8 @@ function matchWorldbook(text) {
 }
 function formatState() {
   const s = gameState, st = s.stats;
-  return `姓名：${s.name}\n学院：${s.house}\n年级：${s.year}年级\n当前场景：${s.scene}\n游戏内时间：${s.time}\n在场人物：${(s.actors||['你']).join('、')}\n魔力：${Math.round(st.mana)}/${st.maxMana}\n体力：${Math.round(st.stamina)}/${st.maxStamina}\n加隆：${st.galleons}\n随身物品：${s.inventory.join('、')||'无'}\n人物关系：${Object.entries(s.relations).map(([k,v])=>`${k}(${v>=0?'+':''}${v})`).join('、')||'无'}`;
+  const relStr = Object.entries(s.relations).map(([k,v])=>`${k}(${v>=0?'+':''}${v})`).join('、')||'无';
+  return `姓名：${s.name}\n性别：${s.gender||'未定'}\n学院：${s.house}\n年级：${s.year}年级\n当前场景：${s.scene}\n游戏内时间：${s.time}\n在场人物：${(s.actors||['你']).join('、')}\n魔力：${Math.round(st.mana)}/${st.maxMana}\n体力：${Math.round(st.stamina)}/${st.maxStamina}\n财产：${st.galleons||0} 金加隆、${st.sickles||0} 银西可、${st.knuts||0} 铜纳特\n衣着：${st.outfit||'（未记录）'}\n心情：${st.mood||'（未记录）'}\n随身物品：${s.inventory.join('、')||'无'}\n人物关系：${relStr}`;
 }
 function buildSystemPrompt(extra='') {
   const preset = presets.find(p => p.id === activePresetId) || presets[0];
@@ -1487,7 +1495,7 @@ window.resetBeautify = () => {
 };
 // ==================== 人物属性（侧栏） ====================
 const DEFAULT_CHARCARD = {
-  name: '', en: '', house: '', hair: '', eye: '', pet: '', patronus: '',
+  name: '', gender: '', house: '', hair: '', eye: '', pet: '', patronus: '',
   wand: '', blood: '', birthYear: '', birthday: '', mbti: '', zodiac: '', height: '',
   appearance: '', photo: '', created: false,
   timeline: 'child', identityType: 'student',
@@ -1581,7 +1589,7 @@ function renderCreateStep(){
       </div>
 
       <div class="field"><label>姓名</label><input id="cc-cr-name" placeholder="中文名"></div>
-      <div class="field"><label>英文名</label><input id="cc-cr-en" placeholder="Latin / English"></div>
+      <div class="field"><label>性别</label><input id="cc-cr-en" placeholder="男 / 女 / 其他"></div>
 
       <div class="field" style="display:flex;gap:6px;">
         <div style="flex:1;"><label>学院</label><select id="cc-cr-house" style="width:100%;">
@@ -1676,6 +1684,17 @@ function ccGradeCourses(g) {
   return map[g] || [];
 }
 
+function getRelationLabel(v) {
+  v = Number(v) || 0;
+  if (v < 10) return '初识';
+  if (v < 15) return '熟悉';
+  if (v < 50) return '同学';
+  if (v < 60) return '朋友';
+  if (v < 75) return '知己';
+  if (v < 80) return '暧昧';
+  if (v < 95) return '情人';
+  return '灵魂伴侣';
+}
 window.renderCharSidebar = () => {
   const c = gameState.charCard;
   const box = $('cc-sidebar-body');
@@ -1725,6 +1744,29 @@ window.renderCharSidebar = () => {
   const owl = isStudent && grade >= 5;
   const newt = isStudent && grade >= 6;
 
+  // 财富显示：拥有的 / 上一轮花掉的
+  const wG = st.galleons || 0, wS = st.sickles || 0, wK = st.knuts || 0;
+  const lG = st.lastGalleons || 0, lS = st.lastSickles || 0, lK = st.lastKnuts || 0;
+  const totalNow = wG + wS/17 + wK/493;
+  const totalLast = lG + lS/17 + lK/493;
+  let spentStr = '—';
+  if (totalLast !== 0) {
+    const parts = [];
+    if (lG) parts.push(`${lG}金`);
+    if (lS) parts.push(`${lS}银`);
+    if (lK) parts.push(`${lK}铜`);
+    spentStr = parts.join(' ') || '—';
+  }
+  const wealthHtml = `
+    <div class="cc-row" style="flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;">
+        <span class="cc-k">财产</span>
+        <span class="cc-v">💰 ${wG} 金加隆 / ${wS} 银西可 / ${wK} 铜纳特</span>
+      </div>
+      <div style="font-size:10px;color:var(--text-faint);margin-top:2px;text-align:right;">上轮消耗：${spentStr}</div>
+    </div>
+  `;
+
   box.innerHTML = `
     <div class="cc-sidebar-photo-wrap">${photoHtml}</div>
     <div class="cc-sidebar-timeline">
@@ -1736,7 +1778,7 @@ window.renderCharSidebar = () => {
       <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📌 基本</h4><span class="arrow">▶</span></div>
       <div class="cc-sec-body">
         ${row('姓名', c.name)}
-        ${row('英文', c.en)}
+        ${row('性别', c.gender)}
         ${row('学院', c.house)}
         ${row('血统', c.blood)}
         ${row('发色瞳色', (c.hair||'')+(c.eye?(' / '+c.eye):''))}
@@ -1789,13 +1831,18 @@ window.renderCharSidebar = () => {
       <div class="cc-sec-body">
         <div class="bar-row"><div class="bar-label"><span>魔力</span><span>${Math.round(st.mana)}/${st.maxMana}</span></div><div class="bar mana"><i style="width:${clamp(st.mana/st.maxMana*100,0,100)}%"></i></div></div>
         <div class="bar-row"><div class="bar-label"><span>体力</span><span>${Math.round(st.stamina)}/${st.maxStamina}</span></div><div class="bar stam"><i style="width:${clamp(st.stamina/st.maxStamina*100,0,100)}%"></i></div></div>
-        <div class="cc-row"><div class="cc-k">加隆</div><div class="cc-v">💰 ${st.galleons}</div></div>
+        ${row('衣着', st.outfit)}
+        ${row('心情', st.mood)}
+        ${wealthHtml}
       </div>
     </div>
 
     <div class="cc-sec">
       <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>👥 人物关系</h4><span class="arrow">▶</span></div>
-      <div class="cc-sec-body">${Object.keys(gameState.relations).length ? Object.entries(gameState.relations).map(([k,v])=>`<div class="rel"><span>${esc(k)}</span><span class="v ${v>=0?'pos':'neg'}">${v>=0?'+':''}${v}</span></div>`).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有结识任何人</div>'}</div>
+      <div class="cc-sec-body">${Object.keys(gameState.relations).length ? Object.entries(gameState.relations).map(([k,v])=>{
+        const label = getRelationLabel(v);
+        return `<div class="rel"><span>${esc(k)} / ${label}</span><span class="v ${v>=0?'pos':'neg'}">(${v>=0?'+':''}${v})</span></div>`;
+      }).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有结识任何人</div>'}</div>
     </div>
   `;
 };
@@ -1809,7 +1856,7 @@ window.ccConfirmCreate = () => {
   c.identityType = ccCreateData.identityType;
 
   c.name = $('cc-cr-name').value.trim() || '未命名';
-  c.en = $('cc-cr-en').value.trim();
+  c.gender = $('cc-cr-en').value.trim();
   c.house = $('cc-cr-house').value;
   c.blood = $('cc-cr-blood').value;
   c.hair = $('cc-cr-hair').value.trim();
