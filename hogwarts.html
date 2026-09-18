@@ -797,6 +797,7 @@ if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 const json = await res.json();
 raw = json?.choices?.[0]?.message?.content;
 if (!raw) throw new Error('接口返回格式异常');
+    }
 
     window.hideLoading();
     let s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
@@ -1088,6 +1089,7 @@ window.onSend = () => {
   window.sendAction(v);
 };
 window.sendAction = async (text) => {
+ window.sendAction = async (text) => {
   if(busy) return;
   busy = true;
   window._busySince = Date.now();
@@ -1101,14 +1103,28 @@ window.sendAction = async (text) => {
     const apiProfile = apiProfiles.find(p => p.id === activeApiProfileId);
     if (!apiProfile || !apiProfile.key) {
       await new Promise(r => setTimeout(r, 800));
-      raw = JSON.stringify({ narration: `[模拟模式] 你刚才说了：“${text}”。\n\n由于你还没有填写 API 密钥，这是系统模拟的回复。\n\n去点右上角的 ⚙ 设置填上你的中转站和 Key，就能接入真正的 AI 了！`, state_changes: { mana: -5, stamina: -5 }, options: ["去填写 API", "继续随便按按"] });
+      raw = JSON.stringify({ narration: `[模拟模式] 你刚才说了："${text}"。\n\n去点右上角的 ⚙ 设置填上 API。`, state_changes: { mana: -5, stamina: -5 }, options: ["去填写 API", "继续随便按按"] });
     } else {
-      const res = await fetch(apiProfile.url, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
-        body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      const json = await res.json(); raw = json?.choices?.[0]?.message?.content;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
+      let res;
+      try {
+        res = await fetch(apiProfile.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
+          body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature }),
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      if (!res.ok) {
+        let detail = '';
+        try { detail = await res.text(); } catch(e){}
+        throw new Error('HTTP ' + res.status + ' · ' + detail.slice(0, 200));
+      }
+      const json = await res.json();
+      raw = json?.choices?.[0]?.message?.content;
       if (!raw) throw new Error('接口返回格式异常');
     }
 
@@ -1117,7 +1133,7 @@ window.sendAction = async (text) => {
     const a = s.indexOf('{'), b = s.lastIndexOf('}'); if (a >= 0 && b > a) s = s.slice(a, b + 1);
     let data; try { data = JSON.parse(s); } catch(e) { data = { narration: raw, state_changes: {}, options: [] }; }
     window.pushDisplay('assistant', data.narration || data.text || '（无叙述）');
-    
+
     if (data.state_changes) {
       const c = data.state_changes, st = gameState.stats;
       if (typeof c.mana === 'number') st.mana = clamp(st.mana + c.mana, 0, st.maxMana);
@@ -1132,8 +1148,15 @@ window.sendAction = async (text) => {
     }
     window.renderOptions(data.options);
   } catch(err) {
-    window.hideLoading(); window.pushDisplay('system', '⚠ ' + err.message); history.pop(); LS.set('hp_history', history);
-  } finally { busy = false; window._busySince = 0; $('send-btn').disabled = false; $('user-input').disabled = false; }
+    window.hideLoading();
+    window.pushDisplay('system', '⚠ ' + err.message);
+    history.pop(); LS.set('hp_history', history);
+  } finally {
+    busy = false;
+    window._busySince = 0;
+    $('send-btn').disabled = false;
+    $('user-input').disabled = false;
+  }
 };
 
 // ==================== 音乐播放器 ====================
