@@ -22,6 +22,10 @@ body {
   color: var(--text-main); font-size: 14px; background-color: var(--bg-deep);
   background-image: radial-gradient(circle at 50% 0%, #1a2848 0%, #0a0f1c 80%);
   -webkit-font-smoothing: antialiased;
+}
+/* ★ 关键修复：滤镜只加在内容区，不要加在 body 上，防止手机卡死 */
+#app { 
+  display: flex; flex-direction: column; height: 100vh; height: 100dvh; 
   filter: brightness(var(--app-brightness)) contrast(var(--app-contrast)) blur(var(--app-blur));
   transition: filter 0.2s;
 }
@@ -48,7 +52,6 @@ input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; width: 16px; height: 16px; 
   border-radius: 50%; background: var(--accent-blue); cursor: pointer;
 }
-#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 header {
   flex-shrink: 0; display: flex; align-items: center;
   padding: 6px 10px; background: rgba(6, 9, 19, 0.95);
@@ -189,6 +192,7 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
         </div>
         <div class="field"><label>温度 (0~2)</label><input id="cfg-temp" type="number" step="0.1" min="0" max="2"></div>
         <button class="primary" style="width:100%;padding:10px" onclick="window.saveApiConfig()">保存当前 API 配置</button>
+        <button class="danger" style="width:100%;padding:8px;margin-top:10px;" onclick="window.resetAllData()">⚠ 重置所有本地缓存（如果卡死点这里）</button>
       </div>
 
       <!-- 世界书 -->
@@ -264,13 +268,11 @@ const DEFAULT_STATE = {
   inventory: ['校服', '课本'], relations: {}, flags: {}, actors: ['你']
 };
 
-// 默认 API 配置
 const DEFAULT_API_PROFILES = [{
   id: 'default', name: '默认配置', url: 'https://api.openai.com/v1/chat/completions',
   key: '', model: 'gpt-4o-mini', temperature: 0.9
 }];
 
-// 默认世界书
 const DEFAULT_WORLDBOOKS = [{
   id: 'wb_default', name: '默认世界书',
   entries: [
@@ -279,7 +281,6 @@ const DEFAULT_WORLDBOOKS = [{
   ]
 }];
 
-// 默认预设（条目式）
 const DEFAULT_PRESETS = [{
   id: 'p_default', name: '霍格沃茨 GM（默认）', temperature: 0.9,
   prompts: [
@@ -290,13 +291,13 @@ const DEFAULT_PRESETS = [{
   ]
 }];
 
-// ==================== 全局状态 ====================
+// ==================== 全局状态（安全加载） ====================
 let apiProfiles = LS.get('hp_api_profiles', DEFAULT_API_PROFILES);
-let activeApiProfileId = LS.get('hp_active_api_profile', apiProfiles[0].id);
+let activeApiProfileId = LS.get('hp_active_api_profile', apiProfiles[0]?.id || 'default');
 let worldbooks = LS.get('hp_worldbooks', DEFAULT_WORLDBOOKS);
-let activeWorldbookId = LS.get('hp_active_worldbook', worldbooks[0].id);
+let activeWorldbookId = LS.get('hp_active_worldbook', worldbooks[0]?.id || 'wb_default');
 let presets = LS.get('hp_presets', DEFAULT_PRESETS);
-let activePresetId = LS.get('hp_active_preset', presets[0].id);
+let activePresetId = LS.get('hp_active_preset', presets[0]?.id || 'p_default');
 let gameState = LS.get('hp_state', JSON.parse(JSON.stringify(DEFAULT_STATE)));
 let history = LS.get('hp_history', []);
 let displayHistory = LS.get('hp_display', []);
@@ -307,6 +308,13 @@ let currentTrackIndex = -1;
 let isPlaying = false;
 let audio = new Audio();
 let beautifySettings = LS.get('hp_beautify', { brightness: 100, contrast: 100, blur: 0, wallpaper: '' });
+
+// 数据安全兜底：如果读取的数据被损坏，强制回退到默认值
+if (!gameState || !gameState.stats) gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+if (!Array.isArray(apiProfiles) || apiProfiles.length === 0) apiProfiles = DEFAULT_API_PROFILES;
+if (!Array.isArray(worldbooks) || worldbooks.length === 0) worldbooks = DEFAULT_WORLDBOOKS;
+if (!Array.isArray(presets) || presets.length === 0) presets = DEFAULT_PRESETS;
+if (!presets[0].prompts) presets = DEFAULT_PRESETS; // 兼容旧版预设格式
 
 // ==================== 界面渲染 ====================
 window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
@@ -362,6 +370,13 @@ window.renderOptions = (opts) => {
 window.showLoading = () => { window.hideLoading(); const d = document.createElement('div'); d.className = 'msg assistant loading'; d.id = 'loading-msg'; d.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'; $('story').appendChild(d); $('story').scrollTop = $('story').scrollHeight; };
 window.hideLoading = () => { const e = $('loading-msg'); if (e) e.remove(); };
 
+// ==================== 重置所有数据 ====================
+window.resetAllData = () => {
+  if(!confirm('⚠️ 确定要清空所有本地缓存吗？这将重置 API、世界书、预设和游戏进度！')) return;
+  localStorage.clear();
+  location.reload();
+};
+
 // ==================== API 配置管理 ====================
 window.renderApiProfiles = () => {
   const select = $('api-profile-select'); if (!select) return;
@@ -375,6 +390,9 @@ window.fillApiForm = () => {
 };
 window.switchApiProfile = (id) => { activeApiProfileId = id; LS.set('hp_active_api_profile', id); window.fillApiForm(); };
 window.newApiProfile = () => {
+  const name = prompt('请输入新配置名称：', '新配置');
+  if (!name) return;
+  const newProfile = { id: uid(), name, url: 'https://api.openai.com/v1/chat/completions', kewindow.newApiProfile = () => {
   const name = prompt('请输入新配置名称：', '新配置');
   if (!name) return;
   const newProfile = { id: uid(), name, url: 'https://api.openai.com/v1/chat/completions', key: '', model: 'gpt-4o-mini', temperature: 0.9 };
@@ -394,352 +412,350 @@ window.saveApiConfig = () => {
   const profile = apiProfiles.find(p => p.id === activeApiProfileId);
   if (!profile) return;
   profile.url = $('cfg-url').value.trim(); profile.key = $('cfg-key').value.trim();
-  profile.model = $('cfg-model'profile.model = $('cfg-model').value.trim() || 'gpt-4o-mini'; 
-        profile.temperature = parseFloat($('cfg-temp').value) || 0.9;
-        LS.set('hp_api_profiles', apiProfiles);
-        window.pushDisplay('system', '✓ API 配置已保存');
-    };
+  profile.model = $('cfg-model').value.trim() || 'gpt-4o-mini'; profile.temperature = parseFloat($('cfg-temp').value) || 0.9;
+  LS.set('hp_api_profiles', apiProfiles);
+  window.pushDisplay('system', '✓ API 配置已保存');
+};
 
-    // 提取站子模型（拉取模型列表）
-    window.fetchModels = async () => {
-        const url = $('cfg-url').value.trim();
-        const key = $('cfg-key').value.trim();
-        if (!url || !key) return alert('请先填写接口地址和 API Key');
-        const modelListDiv = $('model-list');
-        modelListDiv.innerHTML = '拉取中...';
-        try {
-            // 智能拼接 /models 接口地址
-            let baseUrl = url.replace(/\/chat\/completions.*$/, '');
-            if (baseUrl.endsWith('/v1')) baseUrl += '/models'; else baseUrl += '/v1/models';
-            
-            const res = await fetch(baseUrl, { headers: { 'Authorization': 'Bearer ' + key } });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const models = data.data || data.models || [];
-            if (models.length === 0) { modelListDiv.innerHTML = '未找到可用模型'; return; }
-            modelListDiv.innerHTML = `找到 ${models.length} 个模型，点击选择：<br>` + models.map(m => `<span class="tag" style="cursor:pointer;" onclick="document.getElementById('cfg-model').value='${m.id}'">${m.id}</span>`).join(' ');
-        } catch (err) {
-            modelListDiv.innerHTML = `拉取失败：${err.message}`;
-        }
-    };
+// 提取站子模型（拉取模型列表）
+window.fetchModels = async () => {
+  const url = $('cfg-url').value.trim();
+  const key = $('cfg-key').value.trim();
+  if (!url || !key) return alert('请先填写接口地址和 API Key');
+  const modelListDiv = $('model-list');
+  modelListDiv.innerHTML = '拉取中...';
+  try {
+    let baseUrl = url.replace(/\/chat\/completions.*$/, '');
+    if (baseUrl.endsWith('/v1')) baseUrl += '/models'; else baseUrl += '/v1/models';
+    const res = await fetch(baseUrl, { headers: { 'Authorization': 'Bearer ' + key } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const models = data.data || data.models || [];
+    if (models.length === 0) { modelListDiv.innerHTML = '未找到可用模型'; return; }
+    modelListDiv.innerHTML = `找到 ${models.length} 个模型，点击选择：<br>` + models.map(m => `<span class="tag" style="cursor:pointer;" onclick="document.getElementById('cfg-model').value='${m.id}'">${m.id}</span>`).join(' ');
+  } catch (err) {
+    modelListDiv.innerHTML = `拉取失败：${err.message}`;
+  }
+};
 
-    // ==================== 世界书管理 ====================
-    window.renderWorldbookSelect = () => {
-        const select = $('worldbook-select'); if (!select) return;
-        select.innerHTML = worldbooks.map(w => `<option value="${w.id}" ${w.id === activeWorldbookId ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
-    };
-    window.switchWorldbook = (id) => { activeWorldbookId = id; LS.set('hp_active_worldbook', id); window.renderWorldList(); };
-    window.newWorldbook = () => {
-        const name = prompt('请输入新世界书名称：', '新世界书');
-        if (!name) return;
-        const newWb = { id: uid(), name, entries: [] };
-        worldbooks.push(newWb); activeWorldbookId = newWb.id;
-        LS.set('hp_worldbooks', worldbooks); LS.set('hp_active_worldbook', activeWorldbookId);
-        window.renderWorldbookSelect(); window.renderWorldList();
-    };
-    window.deleteWorldbook = () => {
-        if (worldbooks.length <= 1) return alert('至少保留一本世界书');
-        if (!confirm('确定删除当前世界书？')) return;
-        worldbooks = worldbooks.filter(w => w.id !== activeWorldbookId);
-        activeWorldbookId = worldbooks[0].id;
-        LS.set('hp_worldbooks', worldbooks); LS.set('hp_active_worldbook', activeWorldbookId);
-        window.renderWorldbookSelect(); window.renderWorldList();
-    };
-    window.renderWorldList = () => {
-        const box = $('world-list'); const wb = worldbooks.find(w => w.id === activeWorldbookId); if (!wb) return;
-        box.innerHTML = wb.entries.map((e) => `
-            <div class="card" style="margin-bottom:10px">
-            <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
-                <input style="flex:1" value="${esc(e.name)}" onchange="window.wbUpdate('${wb.id}','${e.id}','name',this.value)">
-                <label style="font-size:11px;color:#7a8dae;white-space:nowrap"><input type="checkbox" ${e.enabled?'checked':''} onchange="window.wbUpdate('${wb.id}','${e.id}','enabled',this.checked)"> 启用</label>
-                <label style="font-size:11px;color:#7a8dae;white-space:nowrap"><input type="checkbox" ${e.constant?'checked':''} onchange="window.wbUpdate('${wb.id}','${e.id}','constant',this.checked)"> 常驻</label>
-                <button class="danger" style="padding:2px 6px" onclick="window.wbDelete('${wb.id}','${e.id}')">删</button>
-            </div>
-            <input style="width:100%;margin-bottom:6px" value="${esc((e.keywords||[]).join(','))}" placeholder="触发关键词，逗号分隔" onchange="window.wbUpdate('${wb.id}','${e.id}','keywords',this.value.split(',').map(s=>s.trim()).filter(Boolean))">
-            <textarea style="width:100%" rows="3" onchange="window.wbUpdate('${wb.id}','${e.id}','content',this.value)">${esc(e.content)}</textarea>
-            </div>
-        `).join('');
-    };
-    window.wbUpdate = (wbId, entryId, key, val) => { const wb = worldbooks.find(w => w.id === wbId); const e = wb.entries.find(x => x.id === entryId); if (e) { e[key] = val; LS.set('hp_worldbooks', worldbooks); } };
-    window.wbDelete = (wbId, entryId) => { if(confirm('确定删除？')) { const wb = worldbooks.find(w => w.id === wbId); wb.entries = wb.entries.filter(x => x.id !== entryId); LS.set('hp_worldbooks', worldbooks); window.renderWorldList(); } };
-    window.addWorldEntry = () => { const wb = worldbooks.find(w => w.id === activeWorldbookId); if (!wb) return; wb.entries.push({ id: uid(), name: '新条目', enabled: true, constant: false, keywords: [], content: '' }); LS.set('hp_worldbooks', worldbooks); window.renderWorldList(); };
-    window.importWorldbook = (event) => {
-        const file = event.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const json = JSON.parse(e.target.result);
-                const entries = json.entries || json.data || [];
-                if (!Array.isArray(entries) && typeof entries === 'object') {
-                    const newEntries = Object.values(entries).map(item => ({
-                        id: uid(), name: item.comment || '导入条目', enabled: true,
-                        constant: false, keywords: item.key || [],
-                        content: item.content || ''
-                    }));
-                    const wb = worldbooks.find(w => w.id === activeWorldbookId);
-                    wb.entries = wb.entries.concat(newEntries);
-                } else if (Array.isArray(entries)) {
-                    const newEntries = entries.map(item => ({
-                        id: uid(), name: item.comment || item.name || '导入条目', enabled: true,
-                        constant: false, keywords: item.key || item.keywords || [],
-                        content: item.content || ''
-                    }));
-                    const wb = worldbooks.find(w => w.id === activeWorldbookId);
-                    wb.entries = wb.entries.concat(newEntries);
-                }
-                LS.set('hp_worldbooks', worldbooks); window.renderWorldList();
-                window.pushDisplay('system', '✓ 世界书导入成功');
-            } catch(err) { alert('解析失败: ' + err.message); }
-        };
-        reader.readAsText(file);
-    };
+// ==================== 世界书管理 ====================
+window.renderWorldbookSelect = () => {
+  const select = $('worldbook-select'); if (!select) return;
+  select.innerHTML = worldbooks.map(w => `<option value="${w.id}" ${w.id === activeWorldbookId ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
+};
+window.switchWorldbook = (id) => { activeWorldbookId = id; LS.set('hp_active_worldbook', id); window.renderWorldList(); };
+window.newWorldbook = () => {
+  const name = prompt('请输入新世界书名称：', '新世界书');
+  if (!name) return;
+  const newWb = { id: uid(), name, entries: [] };
+  worldbooks.push(newWb); activeWorldbookId = newWb.id;
+  LS.set('hp_worldbooks', worldbooks); LS.set('hp_active_worldbook', activeWorldbookId);
+  window.renderWorldbookSelect(); window.renderWorldList();
+};
+window.deleteWorldbook = () => {
+  if (worldbooks.length <= 1) return alert('至少保留一本世界书');
+  if (!confirm('确定删除当前世界书？')) return;
+  worldbooks = worldbooks.filter(w => w.id !== activeWorldbookId);
+  activeWorldbookId = worldbooks[0].id;
+  LS.set('hp_worldbooks', worldbooks); LS.set('hp_active_worldbook', activeWorldbookId);
+  window.renderWorldbookSelect(); window.renderWorldList();
+};
+window.renderWorldList = () => {
+  const box = $('world-list'); const wb = worldbooks.find(w => w.id === activeWorldbookId); if (!wb) return;
+  box.innerHTML = wb.entries.map((e) => `
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+        <input style="flex:1" value="${esc(e.name)}" onchange="window.wbUpdate('${wb.id}','${e.id}','name',this.value)">
+        <label style="font-size:11px;color:#7a8dae;white-space:nowrap"><input type="checkbox" ${e.enabled?'checked':''} onchange="window.wbUpdate('${wb.id}','${e.id}','enabled',this.checked)"> 启用</label>
+        <label style="font-size:11px;color:#7a8dae;white-space:nowrap"><input type="checkbox" ${e.constant?'checked':''} onchange="window.wbUpdate('${wb.id}','${e.id}','constant',this.checked)"> 常驻</label>
+        <button class="danger" style="padding:2px 6px" onclick="window.wbDelete('${wb.id}','${e.id}')">删</button>
+      </div>
+      <input style="width:100%;margin-bottom:6px" value="${esc((e.keywords||[]).join(','))}" placeholder="触发关键词，逗号分隔" onchange="window.wbUpdate('${wb.id}','${e.id}','keywords',this.value.split(',').map(s=>s.trim()).filter(Boolean))">
+      <textarea style="width:100%" rows="3" onchange="window.wbUpdate('${wb.id}','${e.id}','content',this.value)">${esc(e.content)}</textarea>
+    </div>
+  `).join('');
+};
+window.wbUpdate = (wbId, entryId, key, val) => { const wb = worldbooks.find(w => w.id === wbId); const e = wb.entries.find(x => x.id === entryId); if (e) { e[key] = val; LS.set('hp_worldbooks', worldbooks); } };
+window.wbDelete = (wbId, entryId) => { if(confirm('确定删除？')) { const wb = worldbooks.find(w => w.id === wbId); wb.entries = wb.entries.filter(x => x.id !== entryId); LS.set('hp_worldbooks', worldbooks); window.renderWorldList(); } };
+window.addWorldEntry = () => { const wb = worldbooks.find(w => w.id === activeWorldbookId); if (!wb) return; wb.entries.push({ id: uid(), name: '新条目', enabled: true, constant: false, keywords: [], content: '' }); LS.set('hp_worldbooks', worldbooks); window.renderWorldList(); };
+window.importWorldbook = (event) => {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const json = JSON.parse(e.target.result);
+      const entries = json.entries || json.data || [];
+      const wb = worldbooks.find(w => w.id === activeWorldbookId);
+      if (!Array.isArray(entries) && typeof entries === 'object') {
+        const newEntries = Object.values(entries).map(item => ({ id: uid(), name: item.comment || '导入条目', enabled: true, constant: false, keywords: item.key || [], content: item.content || '' }));
+        wb.entries = wb.entries.concat(newEntries);
+      } else if (Array.isArray(entries)) {
+        const newEntries = entries.map(item => ({ id: uid(), name: item.comment || item.name || '导入条目', enabled: true, constant: false, keywords: item.key || item.keywords || [], content: item.content || '' }));
+        wb.entries = wb.entries.concat(newEntries);
+      }
+      LS.set('hp_worldbooks', worldbooks); window.renderWorldList();
+      window.pushDisplay('system', '✓ 世界书导入成功');
+    } catch(err) { alert('解析失败: ' + err.message); }
+  };
+  reader.readAsText(file);
+};
 
-    // ==================== 预设管理（条目式） ====================
-    window.renderPresetSelect = () => {
-        const select = $('preset-select'); if (!select) return;
-        select.innerHTML = presets.map(p => `<option value="${p.id}" ${p.id === activePresetId ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
-    };
-    window.switchPreset = (id) => { activePresetId = id; LS.set('hp_active_preset', id); window.renderPresetList(); };
-    window.newPreset = () => {
-        const name = prompt('请输入新预设名称：', '新预设');
-        if (!name) return;
-        const newPreset = { id: uid(), name, temperature: 0.9, prompts: [] };
-        presets.push(newPreset); activePresetId = newPreset.id;
-        LS.set('hp_presets', presets); LS.set('hp_active_preset', activePresetId);
-        window.renderPresetSelect(); window.renderPresetList();
-    };
-    window.deletePreset = () => {
-        if (presets.length <= 1) return alert('至少保留一个预设');
-        if (!confirm('确定删除当前预设？')) return;
-        presets = presets.filter(p => p.id !== activePresetId);
-        activePresetId = presets[0].id;
-        LS.set('hp_presets', presets); LS.set('hp_active_preset', activePresetId);
-        window.renderPresetSelect(); window.renderPresetList();
-    };
-    window.renderPresetList = () => {
-        const box = $('preset-list'); const preset = presets.find(p => p.id === activePresetId); if (!preset) return;
-        box.innerHTML = preset.prompts.map((entry) => `
-            <div class="preset-entry">
-            <div class="entry-head">
-                <input value="${esc(entry.name)}" onchange="window.presetEntryUpdate('${preset.id}','${entry.id}','name',this.value)">
-                <div class="entry-controls">
-                <button onclick="window.movePresetEntry('${preset.id}','${entry.id}',-1)">↑</button>
-                <button onclick="window.movePresetEntry('${preset.id}','${entry.id}',1)">↓</button>
-                <button class="${entry.enabled ? '' : 'danger'}" onclick="window.togglePresetEntry('${preset.id}','${entry.id}')">${entry.enabled ? '启' : '禁'}</button>
-                <button class="danger" onclick="window.deletePresetEntry('${preset.id}','${entry.id}')">删</button>
-                </div>
-            </div>
-            <textarea rows="3" onchange="window.presetEntryUpdate('${preset.id}','${entry.id}','content',this.value)">${esc(entry.content)}</textarea>
-            </div>
-        `).join('');
-    };
-    window.presetEntryUpdate = (presetId, entryId, key, val) => { const p = presets.find(x => x.id === presetId); const e = p.prompts.find(x => x.id === entryId); if (e) { e[key] = val; LS.set('hp_presets', presets); } };
-    window.togglePresetEntry = (presetId, entryId) => { const p = presets.find(x => x.id === presetId); const e = p.prompts.find(x => x.id === entryId); if (e) { e.enabled = !e.enabled; LS.set('hp_presets', presets); window.renderPresetList(); } };
-    window.deletePresetEntry = (presetId, entryId) => { if(confirm('确定删除该条目？')) { const p = presets.find(x => x.id === presetId); p.prompts = p.prompts.filter(x => x.id !== entryId); LS.set('hp_presets', presets); window.renderPresetList(); } };
-    window.addPresetEntry = () => { const p = presets.find(x => x.id === activePresetId); p.prompts.push({ id: uid(), name: '新条目', enabled: true, content: '', role: 'system' }); LS.set('hp_presets', presets); window.renderPresetList(); };
-    window.movePresetEntry = (presetId, entryId, direction) => {
-        const p = presets.find(x => x.id === presetId); const index = p.prompts.findIndex(x => x.id === entryId);
-        if (index === -1) return; const newIndex = index + direction;
-        if (newIndex < 0 || newIndex >= p.prompts.length) return;
-        const temp = p.prompts[index]; p.prompts[index] = p.prompts[newIndex]; p.prompts[newIndex] = temp;
-        LS.set('hp_presets', presets); window.renderPresetList();
-    };
-    window.importPreset = (event) => {
-        const file = event.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const json = JSON.parse(e.target.result);
-                const prompts = json.prompts || [];
-                const newPrompts = prompts.map(item => ({
-                    id: uid(), name: item.name || item.identifier || '导入条目',
-                    enabled: true, content: item.content || item.prompt || '', role: 'system'
-                }));
-                const p = presets.find(x => x.id === activePresetId);
-                p.prompts = p.prompts.concat(newPrompts);
-                LS.set('hp_presets', presets); window.renderPresetList();
-                window.pushDisplay('system', '✓ 预设导入成功');
-            } catch(err) { alert('解析失败: ' + err.message); }
-        };
-        reader.readAsText(file);
-    };
+// ==================== 预设管理（条目式） ====================
+window.renderPresetSelect = () => {
+  const select = $('preset-select'); if (!select) return;
+  select.innerHTML = presets.map(p => `<option value="${p.id}" ${p.id === activePresetId ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+};
+window.switchPreset = (id) => { activePresetId = id; LS.set('hp_active_preset', id); window.renderPresetList(); };
+window.newPreset = () => {
+  const name = prompt('请输入新预设名称：', '新预设');
+  if (!name) return;
+  const newPreset = { id: uid(), name, temperature: 0.9, prompts: [] };
+  presets.push(newPreset); activePresetId = newPreset.id;
+  LS.set('hp_presets', presets); LS.set('hp_active_preset', activePresetId);
+  window.renderPresetSelect(); window.renderPresetList();
+};
+window.deletePreset = () => {
+  if (presets.length <= 1) return alert('至少保留一个预设');
+  if (!confirm('确定删除当前预设？')) return;
+  presets = presets.filter(p => p.id !== activePresetId);
+  activePresetId = presets[0].id;
+  LS.set('hp_presets', presets); LS.set('hp_active_preset', activePresetId);
+  window.renderPresetSelect(); window.renderPresetList();
+};
+window.renderPresetList = () => {
+  const box = $('preset-list'); const preset = presets.find(p => p.id === activePresetId); if (!preset) return;
+  box.innerHTML = preset.prompts.map((entry) => `
+    <div class="preset-entry">
+      <div class="entry-head">
+        <input value="${esc(entry.name)}" onchange="window.presetEntryUpdate('${preset.id}','${entry.id}','name',this.value)">
+        <div class="entry-controls">
+          <button onclick="window.movePresetEntry('${preset.id}','${entry.id}',-1)">↑</button>
+          <button onclick="window.movePresetEntry('${preset.id}','${entry.id}',1)">↓</button>
+          <button class="${entry.enabled ? '' : 'danger'}" onclick="window.togglePresetEntry('${preset.id}','${entry.id}')">${entry.enabled ? '启' : '禁'}</button>
+          <button class="danger" onclick="window.deletePresetEntry('${preset.id}','${entry.id}')">删</button>
+        </div>
+      </div>
+      <textarea rows="3" onchange="window.presetEntryUpdate('${preset.id}','${entry.id}','content',this.value)">${esc(entry.content)}</textarea>
+    </div>
+  `).join('');
+};
+window.presetEntryUpdate = (presetId, entryId, key, val) => { const p = presets.find(x => x.id === presetId); const e = p.prompts.find(x => x.id === entryId); if (e) { e[key] = val; LS.set('hp_presets', presets); } };
+window.togglePresetEntry = (presetId, entryId) => { const p = presets.find(x => x.id === presetId); const e = p.prompts.find(x => x.id === entryId); if (e) { e.enabled = !e.enabled; LS.set('hp_presets', presets); window.renderPresetList(); } };
+window.deletePresetEntry = (presetId, entryId) => { if(confirm('确定删除该条目？')) { const p = presets.find(x => x.id === presetId); p.prompts = p.prompts.filter(x => x.id !== entryId); LS.set('hp_presets', presets); window.renderPresetList(); } };
+window.addPresetEntry = () => { const p = presets.find(x => x.id === activePresetId); p.prompts.push({ id: uid(), name: '新条目', enabled: true, content: '', role: 'system' }); LS.set('hp_presets', presets); window.renderPresetList(); };
+window.movePresetEntry = (presetId, entryId, direction) => {
+  const p = presets.find(x => x.id === presetId); const index = p.prompts.findIndex(x => x.id === entryId);
+  if (index === -1) return; const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= p.prompts.length) return;
+  const temp = p.prompts[index]; p.prompts[index] = p.prompts[newIndex]; p.prompts[newIndex] = temp;
+  LS.set('hp_presets', presets); window.renderPresetList();
+};
+window.importPreset = (event) => {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const json = JSON.parse(e.target.result);
+      const prompts = json.prompts || [];
+      const newPrompts = prompts.map(item => ({ id: uid(), name: item.name || item.identifier || '导入条目', enabled: true, content: item.content || item.prompt || '', role: 'system' }));
+      const p = presets.find(x => x.id === activePresetId);
+      p.prompts = p.prompts.concat(newPrompts);
+      LS.set('hp_presets', presets); window.renderPresetList();
+      window.pushDisplay('system', '✓ 预设导入成功');
+    } catch(err) { alert('解析失败: ' + err.message); }
+  };
+  reader.readAsText(file);
+};
 
-    // ==================== 提示词构建与发送 ====================
-    function recentContext(extra='') { return displayHistory.slice(-8).map(m => m.text).join('\n') + '\n' + (extra||''); }
-    function matchWorldbook(text) {
-        const wb = worldbooks.find(w => w.id === activeWorldbookId); if (!wb) return '（未启用世界书）';
-        const hits = [];
-        wb.entries.forEach(e => { if(!e.enabled) return; if(e.constant) { hits.push(e); return; } if((e.keywords||[]).some(k => k && text.includes(k.trim()))) hits.push(e); });
-        return hits.length ? hits.map(e => `【${e.name}】\n${e.content}`).join('\n\n') : '（本次没有触发额外设定）';
-    }
-    function formatState() {
-        const s = gameState, st = s.stats;
-        return `姓名：${s.name}\n学院：${s.house}\n年级：${s.year}年级\n当前场景：${s.scene}\n游戏内时间：${s.time}\n在场人物：${(s.actors||['你']).join('、')}\n魔力：${Math.round(st.mana)}/${st.maxMana}\n体力：${Math.round(st.stamina)}/${st.maxStamina}\n加隆：${st.galleons}\n随身物品：${s.inventory.join('、')||'无'}\n人物关系：${Object.entries(s.relations).map(([k,v])=>`${k}(${v>=0?'+':''}${v})`).join('、')||'无'}`;
-    }
-    function buildSystemPrompt(extra='') {
-        const preset = presets.find(p => p.id === activePresetId) || presets[0];
-        let finalPrompt = '';
-        preset.prompts.forEach(entry => {
-            if (!entry.enabled) return;
-            let content = entry.content;
-            content = content.replace(/\{\{state\}\}/g, formatState()).replace(/\{\{worldbook\}\}/g, matchWorldbook(recentContext(extra)));
-            finalPrompt += content + '\n\n';
-        });
-        return finalPrompt.trim();
-    }
-
-    window.onSend = () => { const el = $('user-input'); const v = el.value.trim(); if(!v || busy) return; el.value = ''; el.style.height = 'auto'; window.sendAction(v); };
-    window.sendAction = async (text) => {
-        if(busy) return; busy = true;
-        $('send-btn').disabled = true; $('user-input').disabled = true; $('options').innerHTML = '';
-        window.pushDisplay('user', text); history.push({ role: 'user', content: text });
-        const messages = [{ role: 'system', content: buildSystemPrompt(text) }, ...history.slice(-10)];
-        window.showLoading();
-
-        try {
-            let raw;
-            const apiProfile = apiProfiles.find(p => p.id === activeApiProfileId);
-            if (!apiProfile || !apiProfile.key) {
-                await new Promise(r => setTimeout(r, 800));
-                raw = JSON.stringify({ narration: `[模拟模式] 你刚才说了：“${text}”。\n\n由于你还没有填写 API 密钥，这是系统模拟的回复。\n\n去点右上角的 ⚙ 设置填上你的中转站和 Key，就能接入真正的 AI 了！`, state_changes: { mana: -5, stamina: -5 }, options: ["去填写 API", "继续随便按按"] });
-            } else {
-                const res = await fetch(apiProfile.url, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
-                    body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature })
-                });
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const json = await res.json(); raw = json?.choices?.[0]?.message?.content;
-                if (!raw) throw new Error('接口返回格式异常');
-            }
-
-            window.hideLoading(); history.push({ role: 'assistant', content: raw }); LS.set('hp_history', history);
-            let s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
-            const a = s.indexOf('{'), b = s.lastIndexOf('}'); if (a >= 0 && b > a) s = s.slice(a, b + 1);
-            let data; try { data = JSON.parse(s); } catch(e) { data = { narration: raw, state_changes: {}, options: [] }; }
-            window.pushDisplay('assistant', data.narration || data.text || '（无叙述）');
-            
-            if (data.state_changes) {
-                const c = data.state_changes, st = gameState.stats;
-                if (typeof c.mana === 'number') st.mana = clamp(st.mana + c.mana, 0, st.maxMana);
-                if (typeof c.stamina === 'number') st.stamina = clamp(st.stamina + c.stamina, 0, st.maxStamina);
-                if (typeof c.galleons === 'number') st.galleons = Math.max(0, st.galleons + c.galleons);
-                if (c.scene) gameState.scene = c.scene; if (c.time) gameState.time = c.time;
-                if (c.house) gameState.house = c.house;
-                if (Array.isArray(c.inventory_add)) c.inventory_add.forEach(i => { if(!gameState.inventory.includes(i)) gameState.inventory.push(i); });
-                if (c.relations) for(const [k,v] of Object.entries(c.relations)) { gameState.relations[k] = (gameState.relations[k]||0) + v; }
-                if (Array.isArray(c.actors)) gameState.actors = c.actors;
-                LS.set('hp_state', gameState); window.renderStatus();
-            }
-            window.renderOptions(data.options);
-        } catch(err) {
-            window.hideLoading(); window.pushDisplay('system', '⚠ ' + err.message); history.pop(); LS.set('hp_history', history);
-        } finally { busy = false; $('send-btn').disabled = false; $('user-input').disabled = false; }
-    };
-
-    // ==================== 音乐播放器 ====================
-    window.renderMusicPlaylist = () => {
-        const box = $('music-playlist'); if (!box) return;
-        box.innerHTML = playlist.map((item, index) => `
-            <div class="playlist-item ${index === currentTrackIndex ? 'active' : ''}" onclick="window.playTrack(${index})">
-            <span>${esc(item.name)}</span>
-            <span class="delete-btn" onclick="event.stopPropagation(); window.removeMusic(${index})">✕</span>
-            </div>
-        `).join('');
-        if (playlist.length === 0) box.innerHTML = '<div style="font-size:11px;color:#4c5e7d;text-align:center;padding:10px;">歌单为空</div>';
-    };
-    window.addMusic = () => {
-        const name = $('music-name').value.trim(); const url = $('music-url').value.trim();
-        if (!url) return alert('请输入音乐链接');
-        playlist.push({ name: name || '未知歌曲', url }); LS.set('hp_playlist', playlist);
-        $('music-name').value = ''; $('music-url').value = '';
-        if (playlist.length === 1) window.playTrack(0); window.renderMusicPlaylist();
-    };
-    window.removeMusic = (index) => {
-        playlist.splice(index, 1); LS.set('hp_playlist', playlist);
-        if (currentTrackIndex === index) { audio.pause(); currentTrackIndex = -1; isPlaying = false; $('music-title').textContent = '暂无播放'; $('music-play-btn').textContent = '▶'; }
-        else if (currentTrackIndex > index) currentTrackIndex--;
-        window.renderMusicPlaylist();
-    };
-    window.playTrack = (index) => {
-        if (index < 0 || index >= playlist.length) return;
-        currentTrackIndex = index; const track = playlist[index]; audio.src = track.url;
-        audio.play().catch(e => window.pushDisplay('system', '⚠ 音乐播放失败'));
-        isPlaying = true; $('music-title').textContent = track.name; $('music-artist').textContent = '播放中...'; $('music-play-btn').textContent = '⏸';
-        window.renderMusicPlaylist();
-    };
-    window.togglePlay = () => {
-        if (playlist.length === 0) return alert('请先添加音乐');
-        if (currentTrackIndex === -1) { window.playTrack(0); return; }
-        if (isPlaying) { audio.pause(); isPlaying = false; $('music-play-btn').textContent = '▶'; $('music-artist').textContent = '暂停'; }
-        else { audio.play(); isPlaying = true; $('music-play-btn').textContent = '⏸'; $('music-artist').textContent = '播放中...'; }
-    };
-    window.prevTrack = () => { if (playlist.length === 0) return; let index = currentTrackIndex - 1; if (index < 0) index = playlist.length - 1; window.playTrack(index); };
-    window.nextTrack = () => { if (playlist.length === 0) return; let index = (currentTrackIndex + 1) % playlist.length; window.playTrack(index); };
-    window.seekMusic = (value) => { if (audio.duration) audio.currentTime = (value / 100) * audio.duration; };
-    window.setVolume = (value) => { audio.volume = value / 100; };
-    audio.addEventListener('timeupdate', () => {
-        if (audio.duration) {
-            const percent = (audio.currentTime / audio.duration) * 100; const progress = $('music-progress');
-            if (progress && document.activeElement !== progress) progress.value = percent;
-            $('music-current').textContent = formatTime(audio.currentTime); $('music-duration').textContent = formatTime(audio.duration);
-        }
+// ==================== 提示词构建与发送 ====================
+function recentContext(extra='') { return displayHistory.slice(-8).map(m => m.text).join('\n') + '\n' + (extra||''); }
+function matchWorldbook(text) {
+  const wb = worldbooks.find(w => w.id === activeWorldbookId); if (!wb) return '（未启用世界书）';
+  const hits = [];
+  wb.entries.forEach(e => { if(!e.enabled) return; if(e.constant) { hits.push(e); return; } if((e.keywords||[]).some(k => k && text.includes(k.trim()))) hits.push(e); });
+  return hits.length ? hits.map(e => `【${e.name}】\n${e.content}`).join('\n\n') : '（本次没有触发额外设定）';
+}
+function formatState() {
+  const s = gameState, st = s.stats;
+  return `姓名：${s.name}\n学院：${s.house}\n年级：${s.year}年级\n当前场景：${s.scene}\n游戏内时间：${s.time}\n在场人物：${(s.actors||['你']).join('、')}\n魔力：${Math.round(st.mana)}/${st.maxMana}\n体力：${Math.round(st.stamina)}/${st.maxStamina}\n加隆：${st.galleons}\n随身物品：${s.inventory.join('、')||'无'}\n人物关系：${Object.entries(s.relations).map(([k,v])=>`${k}(${v>=0?'+':''}${v})`).join('、')||'无'}`;
+}
+function buildSystemPrompt(extra='') {
+  const preset = presets.find(p => p.id === activePresetId) || presets[0];
+  let finalPrompt = '';
+  if(preset && preset.prompts) {
+    preset.prompts.forEach(entry => {
+      if (!entry.enabled) return;
+      let content = entry.content;
+      content = content.replace(/\{\{state\}\}/g, formatState()).replace(/\{\{worldbook\}\}/g, matchWorldbook(recentContext(extra)));
+      finalPrompt += content + '\n\n';
     });
-    audio.addEventListener('ended', () => { window.nextTrack(); });
-    function formatTime(seconds) { if (isNaN(seconds)) return '0:00'; const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60); return `${m}:${s < 10 ? '0' : ''}${s}`; }
+  }
+  return finalPrompt.trim() || '你是一个文字冒险游戏GM。';
+}
 
-    // ==================== 美化设置 ====================
-    window.renderBeautifyUI = () => {
-        $('ui-brightness').value = beautifySettings.brightness; $('val-brightness').textContent = beautifySettings.brightness + '%';
-        $('ui-contrast').value = beautifySettings.contrast; $('val-contrast').textContent = beautifySettings.contrast + '%';
-        $('ui-blur').value = beautifySettings.blur; $('val-blur').textContent = beautifySettings.blur + 'px';
-        $('cfg-wallpaper').value = beautifySettings.wallpaper;
-        applyFilter('brightness', beautifySettings.brightness); applyFilter('contrast', beautifySettings.contrast); applyFilter('blur', beautifySettings.blur);
-        if (beautifySettings.wallpaper) document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(26,40,72,0.8) 0%, rgba(10,15,28,0.95) 80%), url('${beautifySettings.wallpaper}')`;
-    };
-    window.applyFilter = (type, value) => {
-        if (type === 'brightness') { document.documentElement.style.setProperty('--app-brightness', value + '%'); $('val-brightness').textContent = value + '%'; beautifySettings.brightness = parseInt(value); }
-        else if (type === 'contrast') { document.documentElement.style.setProperty('--app-contrast', value + '%'); $('val-contrast').textContent = value + '%'; beautifySettings.contrast = parseInt(value); }
-        else if (type === 'blur') { document.documentElement.style.setProperty('--app-blur', value + 'px'); $('val-blur').textContent = value + 'px'; beautifySettings.blur = parseInt(value); }
-    };
-    window.applyWallpaper = (url) => { if (!url) return; beautifySettings.wallpaper = url; document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(26,40,72,0.8) 0%, rgba(10,15,28,0.95) 80%), url('${url}')`; window.pushDisplay('system', '✓ 壁纸已更新'); };
-    window.uploadWallpaper = (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { beautifySettings.wallpaper = e.target.result; document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(26,40,72,0.8) 0%, rgba(10,15,28,0.95) 80%), url('${e.target.result}')`; window.pushDisplay('system', '✓ 本地壁纸已应用'); }; reader.readAsDataURL(file); };
-    window.saveBeautify = () => { LS.set('hp_beautify', beautifySettings); window.pushDisplay('system', '✓ 美化设置已保存'); };
-    window.importBeautifyJSON = (event) => {
-        const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const json = JSON.parse(e.target.result); let css = json.custom_css || json.css || json.style || '';
-                if (!css) return alert('未在 JSON 中找到 CSS 美化代码');
-                let adaptedCss = css.replace(/#chat\b/g, '#story').replace(/\.mes\b/g, '.msg').replace(/\.mes_block\b/g, '.msg').replace(/\.mes_text\b/g, '.msg').replace(/\.ch_name\b/g, '.msg.assistant').replace(/\.drawer-content\b/g, '.modal-box').replace(/\.menu_button\b/g, 'button');
-                let styleTag = $('imported-css'); if (!styleTag) { styleTag = document.createElement('style'); styleTag.id = 'imported-css'; document.head.appendChild(styleTag); }
-                styleTag.textContent = adaptedCss; window.pushDisplay('system', '✓ JSON 美化已导入并应用');
-            } catch(err) { alert('解析 JSON 失败: ' + err.message); }
-        };
-        reader.readAsText(file);
-    };
+window.onSend = () => { const el = $('user-input'); const v = el.value.trim(); if(!v || busy) return; el.value = ''; el.style.height = 'auto'; window.sendAction(v); };
+window.sendAction = async (text) => {
+  if(busy) return; busy = true;
+  $('send-btn').disabled = true; $('user-input').disabled = true; $('options').innerHTML = '';
+  window.pushDisplay('user', text); history.push({ role: 'user', content: text });
+  const messages = [{ role: 'system', content: buildSystemPrompt(text) }, ...history.slice(-10)];
+  window.showLoading();
 
-    // ==================== 重开与初始化 ====================
-    window.resetGame = () => {
-        if(!confirm('确定要清空进度重新开始吗？')) return;
-        gameState = JSON.parse(JSON.stringify(DEFAULT_STATE)); history = []; displayHistory = [];
-        LS.set('hp_state', gameState); LS.set('hp_history', history); LS.set('hp_display', displayHistory);
-        window.renderStatus(); window.renderStory(); window.renderOptions([]);
-        window.sendAction('（游戏开始）请描述我收到霍格沃茨录取通知书、在国王十字车站穿过 9¾ 站台登上特快列车的情景，作为故事的开场。');
-    };
-    window.addEventListener('DOMContentLoaded', () => {
-        window.renderStatus(); window.renderStory();
-        if (beautifySettings.wallpaper) document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(26,40,72,0.8) 0%, rgba(10,15,28,0.95) 80%), url('${beautifySettings.wallpaper}')`;
-        document.documentElement.style.setProperty('--app-brightness', beautifySettings.brightness + '%');
-        document.documentElement.style.setProperty('--app-contrast', beautifySettings.contrast + '%');
-        document.documentElement.style.setProperty('--app-blur', beautifySettings.blur + 'px');
-        audio.volume = 1.0;
-        if(displayHistory.length === 0) {
-            if(apiProfiles.find(p => p.id === activeApiProfileId)?.key) window.sendAction('（游戏开始）请描述我收到霍格沃茨录取通知书，在车站登上特快列车的情景，作为故事的开场。');
-            else window.pushDisplay('system', '👋 欢迎！先点右上角「⚙」填好设置，再点重开开始游戏。');
-        }
-        const ta = $('user-input');
-        ta.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); window.onSend(); } });
-    });
+  try {
+    let raw;
+    const apiProfile = apiProfiles.find(p => p.id === activeApiProfileId);
+    if (!apiProfile || !apiProfile.key) {
+      await new Promise(r => setTimeout(r, 800));
+      raw = JSON.stringify({ narration: `[模拟模式] 你刚才说了：“${text}”。\n\n由于你还没有填写 API 密钥，这是系统模拟的回复。\n\n去点右上角的 ⚙ 设置填上你的中转站和 Key，就能接入真正的 AI 了！`, state_changes: { mana: -5, stamina: -5 }, options: ["去填写 API", "继续随便按按"] });
+    } else {
+      const res = await fetch(apiProfile.url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
+        body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const json = await res.json(); raw = json?.choices?.[0]?.message?.content;
+      if (!raw) throw new Error('接口返回格式异常');
+    }
+
+    window.hideLoading(); history.push({ role: 'assistant', content: raw }); LS.set('hp_history', history);
+    let s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+    const a = s.indexOf('{'), b = s.lastIndexOf('}'); if (a >= 0 && b > a) s = s.slice(a, b + 1);
+    let data; try { data = JSON.parse(s); } catch(e) { data = { narration: raw, state_changes: {}, options: [] }; }
+    window.pushDisplay('assistant', data.narration || data.text || '（无叙述）');
+    
+    if (data.state_changes) {
+      const c = data.state_changes, st = gameState.stats;
+      if (typeof c.mana === 'number') st.mana = clamp(st.mana + c.mana, 0, st.maxMana);
+      if (typeof c.stamina === 'number') st.stamina = clamp(st.stamina + c.stamina, 0, st.maxStamina);
+      if (typeof c.galleons === 'number') st.galleons = Math.max(0, st.galleons + c.galleons);
+      if (c.scene) gameState.scene = c.scene; if (c.time) gameState.time = c.time;
+      if (c.house) gameState.house = c.house;
+      if (Array.isArray(c.inventory_add)) c.inventory_add.forEach(i => { if(!gameState.inventory.includes(i)) gameState.inventory.push(i); });
+      if (c.relations) for(const [k,v] of Object.entries(c.relations)) { gameState.relations[k] = (gameState.relations[k]||0) + v; }
+      if (Array.isArray(c.actors)) gameState.actors = c.actors;
+      LS.set('hp_state', gameState); window.renderStatus();
+    }
+    window.renderOptions(data.options);
+  } catch(err) {
+    window.hideLoading(); window.pushDisplay('system', '⚠ ' + err.message); history.pop(); LS.set('hp_history', history);
+  } finally { busy = false; $('send-btn').disabled = false; $('user-input').disabled = false; }
+};
+
+// ==================== 音乐播放器 ====================
+window.renderMusicPlaylist = () => {
+  const box = $('music-playlist'); if (!box) return;
+  box.innerHTML = playlist.map((item, index) => `
+    <div class="playlist-item ${index === currentTrackIndex ? 'active' : ''}" onclick="window.playTrack(${index})">
+      <span>${esc(item.name)}</span>
+      <span class="delete-btn" onclick="event.stopPropagation(); window.removeMusic(${index})">✕</span>
+    </div>
+  `).join('');
+  if (playlist.length === 0) box.innerHTML = '<div style="font-size:11px;color:#4c5e7d;text-align:center;padding:10px;">歌单为空</div>';
+};
+window.addMusic = () => {
+  const name = $('music-name').value.trim(); const url = $('music-url').value.trim();
+  if (!url) return alert('请输入音乐链接');
+  playlist.push({ name: name || '未知歌曲', url }); LS.set('hp_playlist', playlist);
+  $('music-name').value = ''; $('music-url').value = '';
+  if (playlist.length === 1) window.playTrack(0); window.renderMusicPlaylist();
+};
+window.removeMusic = (index) => {
+  playlist.splice(index, 1); LS.set('hp_playlist', playlist);
+  if (currentTrackIndex === index) { audio.pause(); currentTrackIndex = -1; isPlaying = false; $('music-title').textContent = '暂无播放'; $('music-play-btn').textContent = '▶'; }
+  else if (currentTrackIndex > index) currentTrackIndex--;
+  window.renderMusicPlaylist();
+};
+window.playTrack = (index) => {
+  if (index < 0 || index >= playlist.length) return;
+  currentTrackIndex = index; const track = playlist[index]; audio.src = track.url;
+  audio.play().catch(e => window.pushDisplay('system', '⚠ 音乐播放失败'));
+  isPlaying = true; $('music-title').textContent = track.name; $('music-artist').textContent = '播放中...'; $('music-play-btn').textContent = '⏸';
+  window.renderMusicPlaylist();
+};
+window.togglePlay = () => {
+  if (playlist.length === 0) return alert('请先添加音乐');
+  if (currentTrackIndex === -1) { window.playTrack(0); return; }
+  if (isPlaying) { audio.pause(); isPlaying = false; $('music-play-btn').textContent = '▶'; $('music-artist').textContent = '暂停'; }
+  else { audio.play(); isPlaying = true; $('music-play-btn').textContent = '⏸'; $('music-artist').textContent = '播放中...'; }
+};
+window.prevTrack = () => { if (playlist.length === 0) return; let index = currentTrackIndex - 1; if (index < 0) index = playlist.length - 1; window.playTrack(index); };
+window.nextTrack = () => { if (playlist.length === 0) return; let index = (currentTrackIndex + 1) % playlist.length; window.playTrack(index); };
+window.seekMusic = (value) => { if (audio.duration) audio.currentTime = (value / 100) * audio.duration; };
+window.setVolume = (value) => { audio.volume = value / 100; };
+audio.addEventListener('timeupdate', () => {
+  if (audio.duration) {
+    const percent = (audio.currentTime / audio.duration) * 100; const progress = $('music-progress');
+    if (progress && document.activeElement !== progress) progress.value = percent;
+    $('music-current').textContent = formatTime(audio.currentTime); $('music-duration').textContent = formatTime(audio.duration);
+  }
+});
+audio.addEventListener('ended', () => { window.nextTrack(); });
+function formatTime(seconds) { if (isNaN(seconds)) return '0:00'; const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60); return `${m}:${s < 10 ? '0' : ''}${s}`; }
+
+// ==================== 美化设置 ====================
+window.renderBeautifyUI = () => {
+  $('ui-brightness').value = beautifySettings.brightness; $('val-brightness').textContent = beautifySettings.brightness + '%';
+  $('ui-contrast').value = beautifySettings.contrast; $('val-contrast').textContent = beautifySettings.contrast + '%';
+  $('ui-blur').value = beautifySettings.blur; $('val-blur').textContent = beautifySettings.blur + 'px';
+  $('cfg-wallpaper').value = beautifySettings.wallpaper;
+  applyFilter('brightness', beautifySettings.brightness); applyFilter('contrast', beautifySettings.contrast); applyFilter('blur', beautifySettings.blur);
+  if (beautifySettings.wallpaper) document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(26,40,72,0.8) 0%, rgba(10,15,28,0.95) 80%), url('${beautifySettings.wallpaper}')`;
+};
+window.applyFilter = (type, value) => {
+  if (type === 'brightness') { document.documentElement.style.setProperty('--app-brightness', value + '%'); $('val-brightness').textContent = value + '%'; beautifySettings.brightness = parseInt(value); }
+  else if (type === 'contrast') { document.documentElement.style.setProperty('--app-contrast', value + '%'); $('val-contrast').textContent = value + '%'; beautifySettings.contrast = parseInt(value); }
+  else if (type === 'blur') { document.documentElement.style.setProperty('--app-blur', value + 'px'); $('val-blur').textContent = value + 'px'; beautifySettings.blur = parseInt(value); }
+};
+window.applyWallpaper = (url) => { if (!url) return; beautifySettings.wallpaper = url; document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(26,40,72,0.8) 0%, rgba(10,15,28,0.95) 80%), url('${url}')`; window.pushDisplay('system', '✓ 壁纸已更新'); };
+window.uploadWallpaper = (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { beautifySettings.wallpaper = e.target.result; document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(26,40,72,0.8) 0%, rgba(10,15,28,0.95) 80%), url('${e.target.result}')`; window.pushDisplay('system', '✓ 本地壁纸已应用'); }; reader.readAsDataURL(file); };
+window.saveBeautify = () => { LS.set('hp_beautify', beautifySettings); window.pushDisplay('system', '✓ 美化设置已保存'); };
+window.importBeautifyJSON = (event) => {
+  const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const json = JSON.parse(e.target.result); let css = json.custom_css || json.css || json.style || '';
+      if (!css) return alert('未在 JSON 中找到 CSS 美化代码');
+      let adaptedCss = css.replace(/#chat\b/g, '#story').replace(/\.mes\b/g, '.msg').replace(/\.mes_block\b/g, '.msg').replace(/\.mes_text\b/g, '.msg').replace(/\.ch_name\b/g, '.msg.assistant').replace(/\.drawer-content\b/g, '.modal-box').replace(/\.menu_button\b/g, 'button');
+      let styleTag = $('imported-css'); if (!styleTag) { styleTag = document.createElement('style'); styleTag.id = 'imported-css'; document.head.appendChild(styleTag); }
+      styleTag.textContent = adaptedCss; window.pushDisplay('system', '✓ JSON 美化已导入并应用');
+    } catch(err) { alert('解析 JSON 失败: ' + err.message); }
+  };
+  reader.readAsText(file);
+};
+
+// ==================== 重开与初始化 ====================
+window.resetGame = () => {
+  if(!confirm('确定要清空进度重新开始吗？')) return;
+  gameState = JSON.parse(JSON.stringify(DEFAULT_STATE)); history = []; displayHistory = [];
+  LS.set('hp_state', gameState); LS.set('hp_history', history); LS.set('hp_display', displayHistory);
+  window.renderStatus(); window.renderStory(); window.renderOptions([]);
+  window.sendAction('（游戏开始）请描述我收到霍格沃茨录取通知书、在国王十字车站穿过 9¾ 站台登上特快列车的情景，作为故事的开场。');
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    window.renderStatus(); window.renderStory();
+    if (beautifySettings.wallpaper) document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(26,40,72,0.8) 0%, rgba(10,15,28,0.95) 80%), url('${beautifySettings.wallpaper}')`;
+    document.documentElement.style.setProperty('--app-brightness', beautifySettings.brightness + '%');
+    document.documentElement.style.setProperty('--app-contrast', beautifySettings.contrast + '%');
+    document.documentElement.style.setProperty('--app-blur', beautifySettings.blur + 'px');
+    audio.volume = 1.0;
+    if(displayHistory.length === 0) {
+      if(apiProfiles.find(p => p.id === activeApiProfileId)?.key) window.sendAction('（游戏开始）请描述我收到霍格沃茨录取通知书，在车站登上特快列车的情景，作为故事的开场。');
+      else window.pushDisplay('system', '👋 欢迎！先点右上角「⚙」填好设置，再点重开开始游戏。');
+    }
+    const ta = $('user-input');
+    ta.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); window.onSend(); } });
+  } catch (err) {
+    alert("初始化失败，可能是旧数据冲突。请点击设置里的【重置所有本地缓存】按钮。\\n错误信息: " + err.message);
+  }
+});
+
+// 全局错误拦截，防止手机端白屏卡死无提示
+window.onerror = function(msg, url, line, col, error) {
+  alert("发生错误: " + msg + "\\n行号: " + line);
+  return false;
+};
 </script>
 </body>
 </html>
