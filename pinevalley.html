@@ -202,6 +202,16 @@ input:focus,textarea:focus{border-color:var(--accent);}
   .mes_block{max-width:92%;}
   #chat{padding:12px 10px;gap:12px;}
 }
+.mes { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.mes-ver-badge { position: absolute; top: 6px; right: 8px; font-size: 9px; color: var(--muted); background: rgba(0,0,0,.5); padding: 1px 7px; border-radius: 8px; pointer-events: none; }
+.mes-menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; }
+.mes-menu-overlay.show { display: flex; }
+.mes-menu { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; min-width: 240px; max-width: 320px; }
+.mes-menu button { display: block; width: 100%; padding: 14px 18px; background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-size: 14px; text-align: left; cursor: pointer; font-family: inherit; }
+.mes-menu button:last-child { border-bottom: none; }
+.mes-menu button:active { background: #1c1c1c; }
+.mes-menu button.danger { color: var(--danger); }
+.mes-menu button.cancel { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -476,6 +486,14 @@ input:focus,textarea:focus{border-color:var(--accent);}
 
 <!-- 用于动态注入用户主题 -->
 <style id="user-theme"></style>
+<div class="mes-menu-overlay" id="mes-menu" onclick="closeMesMenu(event)">
+  <div class="mes-menu" onclick="event.stopPropagation()">
+    <button onclick="menuRegenerate()">🔁 再说一个</button>
+    <button onclick="menuEdit()">✏️ 修改</button>
+    <button class="danger" onclick="menuDelete()">🗑 删除</button>
+    <button class="cancel" onclick="closeMesMenu()">取消</button>
+  </div>
+</div>
 
 <script>
 /* ==================== 工具 ==================== */
@@ -560,6 +578,16 @@ let presets   = LS.get('pv_presets', DEF_PRESETS);
 let activePresetId = LS.get('pv_active_preset', 'p_default');
 let worldbook = LS.get('pv_wb', DEF_WB);
 let S         = LS.get('pv_state', JSON.parse(JSON.stringify(DEF_STATE)));
+// 迁移旧存档：把 text 转成 versions
+if(S && Array.isArray(S.chatLog)){
+  S.chatLog.forEach(m=>{
+    if(m && m.text !== undefined && !m.versions){
+      m.versions = [m.text];
+      m.activeVersion = 0;
+      delete m.text;
+    }
+  });
+}
 
 function save(){
   LS.set('pv_settings', settings);
@@ -739,24 +767,156 @@ function openPanel(id){
 function closePanel(id){ $(id).classList.remove('show'); }
 
 /* ==================== 主对话流（酒馆风格） ==================== */
+function getMsgText(m){
+  if(m.versions && Array.isArray(m.versions)) return m.versions[m.activeVersion || 0] || '';
+  return m.text || '';
+}
+function ensureVersions(m){
+  if(!m.versions){ m.versions = [m.text || '']; m.activeVersion = 0; delete m.text; }
+  if(typeof m.activeVersion !== 'number') m.activeVersion = 0;
+}
+
+let menuTargetIdx = -1;
+
 function renderChat(){
   const box = $('chat');
   if(!S.chatLog || !S.chatLog.length){
     box.innerHTML = '<div class="empty">还没有开始。在下方输入你的第一个行动。</div>';
     return;
   }
-  box.innerHTML = S.chatLog.map(m=>{
-    if(m.role==='narration')
-      return `<div class="mes" is_user="false"><div class="mes_block"><div class="ch_name"><span class="name_text">◈ 叙事</span><span class="timestamp">${fmtTime(m.t)}</span></div><div class="mes_text">${esc(m.text)}</div></div></div>`;
-    if(m.role==='player')
-      return `<div class="mes" is_user="true"><div class="mes_block"><div class="ch_name"><span class="name_text">▶ 你</span><span class="timestamp">${fmtTime(m.t)}</span></div><div class="mes_text">${esc(m.text)}</div></div></div>`;
+  box.innerHTML = S.chatLog.map((m, i)=>{
+    if(m.role==='narration'){
+      ensureVersions(m);
+      const text = getMsgText(m);
+      const verCount = m.versions.length;
+      const verBadge = verCount > 1 ? `<span class="mes-ver-badge">${m.activeVersion + 1}/${verCount}</span>` : '';
+      return `<div class="mes" is_user="false" data-idx="${i}"><div class="mes_block">${verBadge}<div class="ch_name"><span class="name_text">◈ 叙事</span><span class="timestamp">${fmtTime(m.t)}</span></div><div class="mes_text">${esc(text)}</div></div></div>`;
+    }
+    if(m.role==='player'){
+      ensureVersions(m);
+      const text = getMsgText(m);
+      return `<div class="mes" is_user="true" data-idx="${i}"><div class="mes_block"><div class="ch_name"><span class="name_text">▶ 你</span><span class="timestamp">${fmtTime(m.t)}</span></div><div class="mes_text">${esc(text)}</div></div></div>`;
+    }
     if(m.role==='system')
-      return `<div class="mes system"><div class="mes_block"><div class="mes_text">${esc(m.text)}</div></div></div>`;
+      return `<div class="mes system" data-idx="${i}"><div class="mes_block"><div class="mes_text">${esc(m.text)}</div></div></div>`;
     if(m.role==='thinking')
       return `<div class="mes thinking" is_user="false"><div class="mes_block"><span class="dots"><i></i><i></i><i></i></span> AI 正在生成...</div></div>`;
     return '';
   }).join('');
   box.scrollTop = box.scrollHeight;
+
+  box.querySelectorAll('.mes[data-idx]').forEach(el=>{
+    const idx = parseInt(el.dataset.idx);
+    const role = S.chatLog[idx] && S.chatLog[idx].role;
+    if(role === 'system' || role === 'thinking') return;
+
+    let timer = null;
+    let sx = 0, sy = 0, swiping = false;
+
+    el.addEventListener('touchstart', (e)=>{
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; swiping = false;
+      timer = setTimeout(()=>{ if(navigator.vibrate) navigator.vibrate(30); showMesMenu(idx); }, 550);
+    }, {passive:true});
+
+    el.addEventListener('touchmove', (e)=>{
+      if(timer){ clearTimeout(timer); timer = null; }
+      if(swiping) return;
+      const dx = e.touches[0].clientX - sx;
+      const dy = e.touches[0].clientY - sy;
+      if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)*1.5){
+        swiping = true;
+        swipeMes(idx, dx < 0 ? 1 : -1);
+      }
+    }, {passive:true});
+
+    el.addEventListener('touchend', ()=>{ if(timer){ clearTimeout(timer); timer = null; } });
+    el.addEventListener('touchcancel', ()=>{ if(timer){ clearTimeout(timer); timer = null; } });
+    el.addEventListener('contextmenu', (e)=>e.preventDefault());
+
+    el.addEventListener('mousedown', ()=>{ timer = setTimeout(()=>showMesMenu(idx), 550); });
+    el.addEventListener('mouseup', ()=>{ if(timer){ clearTimeout(timer); timer = null; } });
+    el.addEventListener('mouseleave', ()=>{ if(timer){ clearTimeout(timer); timer = null; } });
+  });
+}
+
+function showMesMenu(idx){
+  menuTargetIdx = idx;
+  $('mes-menu').classList.add('show');
+}
+function closeMesMenu(e){
+  if(e && e.target !== e.currentTarget) return;
+  $('mes-menu').classList.remove('show');
+  menuTargetIdx = -1;
+}
+
+function menuDelete(){
+  const idx = menuTargetIdx; closeMesMenu();
+  if(idx < 0 || !S.chatLog[idx]) return;
+  if(!confirm('删除这条消息？')) return;
+  S.chatLog.splice(idx, 1);
+  save(); renderChat(); renderSidebar();
+}
+
+function menuEdit(){
+  const idx = menuTargetIdx; closeMesMenu();
+  if(idx < 0 || !S.chatLog[idx]) return;
+  const m = S.chatLog[idx];
+  if(m.role === 'system') return;
+  ensureVersions(m);
+  const cur = getMsgText(m);
+  const newText = prompt('修改内容：', cur);
+  if(newText === null) return;
+  if(!newText.trim()){ alert('内容不能为空'); return; }
+  m.versions[m.activeVersion] = newText;
+  save(); renderChat();
+}
+
+async function menuRegenerate(){
+  const idx = menuTargetIdx; closeMesMenu();
+  if(idx < 0 || !S.chatLog[idx]) return;
+  const m = S.chatLog[idx];
+  if(m.role !== 'narration'){ alert('只能对 AI 叙事重新生成。'); return; }
+  ensureVersions(m);
+
+  let playerIdx = idx - 1;
+  while(playerIdx >= 0 && S.chatLog[playerIdx].role !== 'player') playerIdx--;
+  if(playerIdx < 0){ alert('找不到对应的玩家输入。'); return; }
+  const playerText = getMsgText(S.chatLog[playerIdx]);
+
+  const context = S.chatLog
+    .slice(0, idx)
+    .filter(mm => mm.role === 'narration' || mm.role === 'player')
+    .map(m=>(m.role==='player'?'玩家：':'')+getMsgText(m))
+    .slice(-10)
+    .join('\n\n');
+
+  S.chatLog.splice(idx, 0, { role:'thinking', t:now() });
+  renderChat();
+
+  const reply = await callAI(
+    `【主剧情场景 · 重新生成】\n玩家：${S.player.name}（${S.player.gender}，${S.player.age}岁，外貌：${S.player.appearance}，穿着：${S.player.outfit}，来因：${S.player.reason}）\n现在是第 ${S.day} 天 ${TIME_LABELS[S.timeIndex]}。\n\n之前剧情：\n${context}\n\n玩家行动：${playerText}\n\n请生成一段 200-400 字的沉浸式叙事，第二人称「你」，推进剧情或回应玩家行动。这是一次重新生成，请给出与之前不同的描写角度或情节走向。`
+  );
+
+  S.chatLog = S.chatLog.filter(mm => mm.role !== 'thinking');
+  if(reply.reply){
+    m.versions.push(reply.reply);
+    m.activeVersion = m.versions.length - 1;
+    applyChanges(reply.state_changes);
+    if(reply.clue_add) addClue(reply.clue_add);
+    if(reply.char_update) updateChar(reply.char_update);
+  }
+  save(); renderChat(); renderSidebar();
+}
+
+function swipeMes(idx, dir){
+  const m = S.chatLog[idx];
+  if(!m || m.role !== 'narration') return;
+  ensureVersions(m);
+  if(m.versions.length < 2) return;
+  const newVer = m.activeVersion + dir;
+  if(newVer < 0 || newVer >= m.versions.length) return;
+  m.activeVersion = newVer;
+  save(); renderChat();
 }
 
 async function sendChat(){
@@ -765,7 +925,7 @@ async function sendChat(){
   if(!text) return;
   inp.value = ''; inp.style.height = 'auto';
 
-  S.chatLog.push({ role:'player', text, t:now() });
+  S.chatLog.push({ role:'player', versions:[text], activeVersion:0, t:now() });
   S.chatLog.push({ role:'thinking', t:now() });
   save();
   renderChat();
@@ -791,7 +951,7 @@ ${context}
 
   S.chatLog = S.chatLog.filter(m=>m.role!=='thinking');
   const replyText = reply.reply || '（没有回应）';
-  S.chatLog.push({ role:'narration', text:replyText, t:now() });
+  S.chatLog.push({ role:'narration', versions:[replyText], activeVersion:0, t:now() });
   applyChanges(reply.state_changes);
   if(reply.clue_add) addClue(reply.clue_add);
   if(reply.char_update) updateChar(reply.char_update);
