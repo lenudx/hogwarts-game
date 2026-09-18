@@ -889,7 +889,23 @@ if (!raw) throw new Error('接口返回格式异常');
     const a = s.indexOf('{'), b = s.lastIndexOf('}');
     if (a >= 0 && b > a) s = s.slice(a, b + 1);
     let data;
-    try { data = JSON.parse(s); } catch(e) { data = { narration: raw, state_changes: {}, options: [] }; }
+try {
+  let cleanStr = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+  const firstBrace = cleanStr.indexOf('{');
+  const lastBrace = cleanStr.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    cleanStr = cleanStr.slice(firstBrace, lastBrace + 1);
+  }
+  data = JSON.parse(cleanStr);
+} catch(e) {
+  // 如果 AI 吞了格式，用正则强行把文字抠出来
+  const narMatch = raw.match(/"narration"\s*:\s*"([^]*?)"\s*,\s*"(?:state_changes|options)"/);
+  if (narMatch) {
+    data = { narration: narMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'), state_changes: {}, options: [] };
+  } else {
+    data = { narration: raw.replace(/\\n/g, '\n').replace(/\\"/g, '"'), state_changes: {}, options: [] };
+  }
+}
 
     const newText = data.narration || data.text || '（无叙述）';
     m.versions.push(newText);
@@ -1435,6 +1451,24 @@ window.sendAction = async (text) => {
     const a = s.indexOf('{'), b = s.lastIndexOf('}'); if (a >= 0 && b > a) s = s.slice(a, b + 1);
     let data; try { data = JSON.parse(s); } catch(e) { data = { narration: raw, state_changes: {}, options: [] }; }
     window.pushDisplay('assistant', data.narration || data.text || '（无叙述）');
+    // 把状态变化提取成单独的气泡
+if (data.state_changes) {
+  let sysMsg = [];
+  if (data.state_changes.scene) sysMsg.push(`场景：${data.state_changes.scene}`);
+  if (data.state_changes.time) sysMsg.push(`时间：${data.state_changes.time}`);
+  if (data.state_changes.mana) sysMsg.push(`魔力：${data.state_changes.mana > 0 ? '+' : ''}${data.state_changes.mana}`);
+  if (data.state_changes.stamina) sysMsg.push(`体力：${data.state_changes.stamina > 0 ? '+' : ''}${data.state_changes.stamina}`);
+  if (data.state_changes.galleons) sysMsg.push(`加隆：${data.state_changes.galleons > 0 ? '+' : ''}${data.state_changes.galleons}`);
+  if (data.state_changes.inventory_add && data.state_changes.inventory_add.length) sysMsg.push(`获得物品：${data.state_changes.inventory_add.join('、')}`);
+  if (data.state_changes.relations) {
+    for (const [k, v] of Object.entries(data.state_changes.relations)) {
+      sysMsg.push(`好感变化：${k} ${v > 0 ? '+' : ''}${v}`);
+    }
+  }
+  if (sysMsg.length > 0) {
+    window.pushDisplay('system', '📌 ' + sysMsg.join(' | '));
+  }
+}
 
     if (data.state_changes) {
       const c = data.state_changes, st = gameState.stats;
