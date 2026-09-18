@@ -126,6 +126,15 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 @keyframes bounce { 0%, 60%, 100% { opacity: 0.25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
 @media (min-width: 821px) { .only-mobile { display: none; } #sidebar { position: static; transform: none !important; } }
 @media (max-width: 480px) { .msg.assistant { padding: 12px 13px; font-size: 13px; } #story { padding: 12px; } #options { padding: 0 12px 6px; } header { padding: 4px 8px; } .header-info .h-line { font-size: 10px; } }
+/* ===== 侧栏人物属性 ===== */
+.cc-sidebar-photo-wrap { text-align: center; margin-bottom: 10px; }
+.cc-sidebar-photo { width: 84px; height: 84px; border-radius: 50%; border: 2px solid var(--accent-blue); object-fit: cover; background: rgba(6,9,19,.8); cursor: pointer; }
+.cc-sidebar-photo-empty { width: 84px; height: 84px; border-radius: 50%; border: 2px dashed var(--border-glow); display: inline-flex; align-items: center; justify-content: center; font-size: 24px; color: var(--text-faint); cursor: pointer; background: rgba(6,9,19,.8); }
+.cc-sidebar-timeline { font-size: 10px; color: var(--text-dim); text-align: center; padding: 6px; background: rgba(13,20,36,.5); border-radius: 6px; margin-bottom: 8px; line-height: 1.5; }
+.cc-sidebar-timeline .cur { color: var(--accent-cyan); font-weight: 600; }
+.cc-sidebar-nick-item { display: flex; gap: 4px; padding: 3px 0; font-size: 11px; }
+.cc-sidebar-nick-item .who { color: var(--text-dim); flex-shrink: 0; min-width: 56px; }
+.cc-sidebar-nick-item .nick { color: var(--text-main); }
 /* ===== 人物卡 ===== */
 .cc-photo-wrap { text-align: center; margin-bottom: 12px; }
 .cc-photo { width: 96px; height: 96px; border-radius: 50%; border: 2px solid var(--accent-blue); object-fit: cover; background: rgba(6,9,19,.8); cursor: pointer; }
@@ -184,15 +193,8 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 
   <main>
     <aside id="sidebar" class="hidden">
-      <div class="card"><div class="kv"><span class="k">姓名</span><span class="v" id="ui-name">未定</span></div><div class="kv"><span class="k">学院</span><span class="v" id="ui-house">未分院</span></div><div class="kv"><span class="k">年级</span><span class="v" id="ui-year">1 年级</span></div></div>
-      <div class="card"><h4>当前</h4><div class="kv"><span class="k">场景</span><span class="v" id="ui-scene">-</span></div><div class="kv"><span class="k">时间</span><span class="v" id="ui-time">-</span></div></div>
-      <div class="card"><h4>状态</h4><div class="bar-row"><div class="bar-label"><span>魔力</span><span id="ui-mana-t">0/100</span></div><div class="bar mana"><i id="ui-mana-b" style="width:0%"></i></div></div><div class="bar-row"><div class="bar-label"><span>体力</span><span id="ui-stam-t">0/100</span></div><div class="bar stam"><i id="ui-stam-b" style="width:0%"></i></div></div><div class="kv"><span class="k">加隆</span><span class="v" id="ui-galleons">💰 0</span></div></div>
-      <div class="card"><h4>物品</h4><div id="ui-inventory"></div></div>
-      <div class="card">
-  <button class="primary" style="width: 100%; padding: 10px;" onclick="window.openCharCard()">📋 打开人物卡</button>
-</div>
-      <div class="card"><h4>人物关系</h4><div id="ui-relations"></div></div>
-    </aside>
+  <div id="cc-sidebar-body"></div>
+</aside>
 
     <div id="main-content">
       <div id="story"></div>
@@ -204,21 +206,39 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     </div>
   </main>
 </div>
-
-<div class="modal" id="modal-charcard">
-  <div class="modal-box" style="max-width: 540px;">
-    <div class="modal-head">
-      <h3>📋 人物卡</h3>
-      <div style="display: flex; gap: 6px;">
-        <button id="cc-edit-btn" onclick="window.ccToggleEdit()" class="primary" style="padding: 5px 12px;">✎ 编辑</button>
-        <button onclick="window.closeModal('modal-charcard')">关闭</button>
+<div class="modal" id="modal-create">
+  <div class="modal-box" style="max-width:540px;">
+    <div class="modal-head"><h3>📝 新生入学登记</h3></div>
+    <div class="modal-body">
+      <div class="field"><label>姓名</label><input id="cc-cr-name" placeholder="中文名"></div>
+      <div class="field"><label>英文名</label><input id="cc-cr-en" placeholder="Latin / English"></div>
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>学院</label><select id="cc-cr-house" style="width:100%;"><option value="">未分院</option><option>格兰芬多</option><option>斯莱特林</option><option>拉文克劳</option><option>赫奇帕奇</option></select></div>
+        <div style="flex:1;"><label>血统</label><select id="cc-cr-blood" style="width:100%;"><option value="">未定</option><option>纯血</option><option>混血</option><option>麻瓜出身</option></select></div>
       </div>
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>发色</label><input id="cc-cr-hair" placeholder="黑 / 金"></div>
+        <div style="flex:1;"><label>瞳色</label><input id="cc-cr-eye" placeholder="灰蓝 / 绿"></div>
+      </div>
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>出生年份</label><input id="cc-cr-birthyear" type="number" placeholder="1980"></div>
+        <div style="flex:1;"><label>生日（月-日）</label><input id="cc-cr-birthday" placeholder="03-15"></div>
+      </div>
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>守护神</label><input id="cc-cr-patronus" placeholder="牝鹿"></div>
+        <div style="flex:1;"><label>宠物</label><input id="cc-cr-pet" placeholder="可空"></div>
+      </div>
+      <div class="field"><label>魔杖（杖身 / 杖芯 / 长度 / 柔韧度）</label><input id="cc-cr-wand" placeholder="冬青木 / 凤凰尾羽 / 11英寸 / 柔韧"></div>
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>MBTI</label><input id="cc-cr-mbti" placeholder="INTJ"></div>
+        <div style="flex:1;"><label>星座</label><input id="cc-cr-zodiac" placeholder="双鱼座"></div>
+      </div>
+      <div class="field"><label>身高（毕业后）</label><input id="cc-cr-height" placeholder="175cm"></div>
+      <div class="field"><label>外貌</label><textarea id="cc-cr-appearance" rows="2" placeholder="发色、瞳色、体态、特殊特征"></textarea></div>
+      <button class="primary" style="width:100%;padding:10px;margin-top:6px;" onclick="window.ccConfirmCreate()">入学</button>
     </div>
-    <div class="modal-body" id="charcard-body"></div>
   </div>
 </div>
-
-<input type="file" id="cc-photo-input" accept="image/*" style="display: none;" onchange="window.ccUploadPhoto(event)">
 <div class="modal" id="modal-settings">
   <div class="modal-box">
     <div class="modal-head"><h3>⚙ 系统设置</h3><button onclick="window.closeModal('modal-settings')">关闭</button></div>
@@ -230,7 +250,6 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       <button onclick="window.switchSettingsTab('tab-music')">音乐</button>
     </div>
     <div class="modal-body">
-      <!-- API -->
       <div class="tab-pane active" id="tab-api">
         <div class="field" style="display:flex;gap:6px;align-items:center;">
           <label style="flex-shrink:0;">API 配置</label>
@@ -252,7 +271,6 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
         <button class="primary" style="width:100%;padding:10px" onclick="window.saveApiConfig()">保存当前 API 配置</button>
         <button class="danger" style="width:100%;padding:8px;margin-top:10px;" onclick="window.resetAllData()">⚠ 重置所有本地缓存（如果卡死点这里）</button>
       </div>
-
       <!-- 世界书 -->
       <div class="tab-pane" id="tab-world">
         <div class="field" style="display:flex;gap:6px;align-items:center;">
@@ -392,27 +410,20 @@ window.switchSettingsTab = (tabId) => {
 };
 
 window.renderStatus = () => {
-  const s = gameState, st = s.stats;
-  $('ui-name').textContent = s.name; $('ui-house').textContent = s.house; $('ui-year').textContent = s.year + ' 年级';
-  $('ui-scene').textContent = s.scene; $('ui-time').textContent = s.time;
-  $('ui-mana-t').textContent = Math.round(st.mana) + '/' + st.maxMana;
-  $('ui-mana-b').style.width = clamp(st.mana / st.maxMana * 100, 0, 100) + '%';
-  $('ui-stam-t').textContent = Math.round(st.stamina) + '/' + st.maxStamina;
-  $('ui-stam-b').style.width = clamp(st.stamina / st.maxStamina * 100, 0, 100) + '%';
-  $('ui-galleons').textContent = '💰 ' + st.galleons;
-  $('ui-inventory').innerHTML = s.inventory.length ? s.inventory.map(i => `<span class="tag">${esc(i)}</span>`).join('') : '<span style="color:#4c5e7d;font-size:11px">空空如也</span>';
-  $('ui-relations').innerHTML = Object.keys(s.relations).length ? Object.entries(s.relations).map(([k,v]) => `<div class="rel"><span>${esc(k)}</span><span class="v ${v>=0?'pos':'neg'}">${v>=0?'+':''}${v}</span></div>`).join('') : '<span style="color:#4c5e7d;font-size:11px">还没有结识任何人</span>';
-
+  const s = gameState;
   let yearStr = '2000年'; let timeStr = '未知';
   if (s.time) {
     const match = s.time.match(/(\d{4}年)/); if (match) yearStr = match[1];
     const timeMatch = s.time.match(/·\s*(.+)$/);
-    if (timeMatch) timeStr = timeMatch[1].trim(); else timeStr = s.time.replace(/^\d{4}年\d+月\d+日\s*·?\s*/, '') || s.time;
+    if (timeMatch) timeStr = timeMatch[1].trim();
+    else timeStr = s.time.replace(/^\d{4}年\d+月\d+日\s*·?\s*/, '') || s.time;
   }
-  $('ui-header-year').textContent = yearStr; $('ui-header-time').textContent = timeStr;
+  $('ui-header-year').textContent = yearStr;
+  $('ui-header-time').textContent = timeStr;
   $('ui-header-scene').textContent = s.scene || '未知';
   let actors = s.actors || ['你']; if (!Array.isArray(actors)) actors = [actors];
   $('ui-header-actors').textContent = actors.join('、');
+  window.renderCharSidebar();
 };
 
 function makeMsgEl(role, text) { const d = document.createElement('div'); d.className = 'msg ' + role; d.textContent = text; return d; }
@@ -778,6 +789,184 @@ window.importBeautifyJSON = (event) => {
   reader.readAsText(file);
 };
 
+// ==================== 人物属性（侧栏） ====================
+const DEFAULT_CHARCARD = {
+  name: '', en: '', house: '', hair: '', eye: '', pet: '', patronus: '',
+  wand: '', blood: '', birthYear: '', birthday: '', mbti: '', zodiac: '', height: '',
+  appearance: '', photo: '', created: false
+};
+if (!gameState.charCard) gameState.charCard = JSON.parse(JSON.stringify(DEFAULT_CHARCARD));
+Object.keys(DEFAULT_CHARCARD).forEach(k => {
+  if (gameState.charCard[k] === undefined) gameState.charCard[k] = DEFAULT_CHARCARD[k];
+});
+
+function ccGetCurrentYear() {
+  if (gameState.time) { const m = gameState.time.match(/(\d{4})年/); if (m) return parseInt(m[1]); }
+  return 1991;
+}
+function ccGetBirthYear() {
+  const c = gameState.charCard;
+  if (c.birthYear) return parseInt(c.birthYear);
+  if (c.birthday) { const m = c.birthday.match(/(\d{4})/); if (m) return parseInt(m[1]); }
+  return null;
+}
+function ccGetGrade() {
+  const by = ccGetBirthYear(); if (!by) return 1;
+  const g = ccGetCurrentYear() - (by + 11) + 1;
+  return Math.max(1, Math.min(7, g));
+}
+function ccGradeCourses(g) {
+  const map = {
+    1: ['魔药学', '魔咒学', '魔法史', '变形术', '草药学', '天文学', '黑魔法防御术', '飞行课'],
+    2: ['魔药学', '魔咒学', '魔法史', '变形术', '草药学', '天文学', '黑魔法防御术'],
+    3: ['魔药学', '魔咒学', '魔法史', '变形术', '草药学', '天文学', '黑魔法防御术', '选修课（五选二）'],
+    4: ['魔药学', '魔咒学', '魔法史', '变形术', '草药学', '天文学', '黑魔法防御术', '选修课'],
+    5: ['魔药学', '魔咒学', '魔法史', '变形术', '草药学', '天文学', '黑魔法防御术', '选修课', 'O.W.L. 考试'],
+    6: ['N.E.W.T. 课程（按成绩选修）'],
+    7: ['N.E.W.T. 课程', '毕业考试']
+  };
+  return map[g] || [];
+}
+
+window.renderCharSidebar = () => {
+  const c = gameState.charCard;
+  const box = $('cc-sidebar-body');
+  if (!box) return;
+
+  const by = ccGetBirthYear();
+  const cy = ccGetCurrentYear();
+  const ey = by ? by + 11 : null;
+  const gy = ey ? ey + 7 : null;
+  const grade = ccGetGrade();
+  const st = gameState.stats;
+
+  const photoHtml = c.photo
+    ? `<img src="${c.photo}" class="cc-sidebar-photo" onclick="document.getElementById('cc-sidebar-photo').click()">`
+    : `<div class="cc-sidebar-photo-empty" onclick="document.getElementById('cc-sidebar-photo').click()">+</div>`;
+
+  let tl = by ? `出生 ${by} · 入学 ${ey} · 毕业 ${gy}` : '（未填生日）';
+  tl += `<br>当前：<span class="cur">${cy} 年 · ${grade} 年级</span>`;
+
+  const row = (k, v) => `<div class="cc-row"><div class="cc-k">${k}</div><div class="cc-v ${v?'':'empty'}">${v?esc(v):'（空）'}</div></div>`;
+
+  let coursesHtml = '';
+  for (let g = 1; g <= grade; g++) {
+    coursesHtml += `<div class="cc-subject-block"><div class="sb-title">${g} 年级</div>${ccGradeCourses(g).map(s=>`<div class="cc-subject-line"><span>${s}</span></div>`).join('')}</div>`;
+  }
+  if (!coursesHtml) coursesHtml = '<div style="font-size:11px;color:var(--text-faint);">（未入学）</div>';
+
+  const owl = grade >= 5;
+  const newt = grade >= 6;
+
+  box.innerHTML = `
+    <div class="cc-sidebar-photo-wrap">${photoHtml}</div>
+    <div class="cc-sidebar-timeline">${tl}</div>
+
+    <div class="cc-sec open">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📌 基本</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">
+        ${row('姓名', c.name)}
+        ${row('英文', c.en)}
+        ${row('学院', c.house)}
+        ${row('血统', c.blood)}
+        ${row('发色瞳色', (c.hair||'')+(c.eye?(' / '+c.eye):''))}
+        ${row('生日', c.birthday)}
+        ${row('入学/毕业', ey ? `${ey}—${gy}` : '')}
+      </div>
+    </div>
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>✨ 守护神 & 魔杖</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">
+        ${row('守护神', c.patronus)}
+        ${row('魔杖', c.wand)}
+        ${row('宠物', c.pet)}
+      </div>
+    </div>
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>🧬 性格 & 外貌</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">
+        ${row('MBTI', c.mbti)}
+        ${row('星座', c.zodiac)}
+        ${row('身高', c.height)}
+        ${row('外貌', c.appearance)}
+      </div>
+    </div>
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📚 课程（随年级解锁）</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">${coursesHtml}</div>
+    </div>
+
+    ${owl ? `<div class="cc-sec"><div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📝 O.W.L.（五年级）</h4><span class="arrow">▶</span></div><div class="cc-sec-body">${['魔药学','魔咒学','魔法史','变形术','草药学','天文学','黑魔法防御术','飞行课'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}<div class="cc-subject-block"><div class="sb-title">选修课（五选二）</div>${['神奇动物保护学','古代如尼文研究','算数占卜','麻瓜研究','占卜学'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}</div></div></div>` : ''}
+
+    ${newt ? `<div class="cc-sec"><div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📝 N.E.W.T.（六年级）</h4><span class="arrow">▶</span></div><div class="cc-sec-body">${['魔药学','魔咒学','魔法史','变形术','草药学','天文学','黑魔法防御术','飞行课'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}</div></div>` : ''}
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>🎒 物品</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">${gameState.inventory.length ? gameState.inventory.map(i=>`<span class="tag">${esc(i)}</span>`).join('') : '<div style="color:var(--text-faint);font-size:11px;">空空如也</div>'}</div>
+    </div>
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>💗 状态</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">
+        <div class="bar-row"><div class="bar-label"><span>魔力</span><span>${Math.round(st.mana)}/${st.maxMana}</span></div><div class="bar mana"><i style="width:${clamp(st.mana/st.maxMana*100,0,100)}%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>体力</span><span>${Math.round(st.stamina)}/${st.maxStamina}</span></div><div class="bar stam"><i style="width:${clamp(st.stamina/st.maxStamina*100,0,100)}%"></i></div></div>
+        <div class="cc-row"><div class="cc-k">加隆</div><div class="cc-v">💰 ${st.galleons}</div></div>
+      </div>
+    </div>
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>👥 人物关系</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">${Object.keys(gameState.relations).length ? Object.entries(gameState.relations).map(([k,v])=>`<div class="rel"><span>${esc(k)}</span><span class="v ${v>=0?'pos':'neg'}">${v>=0?'+':''}${v}</span></div>`).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有结识任何人</div>'}</div>
+    </div>
+  `;
+};
+
+window.ccConfirmCreate = () => {
+  const c = gameState.charCard;
+  c.name = $('cc-cr-name').value.trim() || '未命名';
+  c.en = $('cc-cr-en').value.trim();
+  c.house = $('cc-cr-house').value;
+  c.blood = $('cc-cr-blood').value;
+  c.hair = $('cc-cr-hair').value.trim();
+  c.eye = $('cc-cr-eye').value.trim();
+  c.birthYear = $('cc-cr-birthyear').value.trim();
+  c.birthday = $('cc-cr-birthday').value.trim();
+  c.patronus = $('cc-cr-patronus').value.trim();
+  c.pet = $('cc-cr-pet').value.trim();
+  c.wand = $('cc-cr-wand').value.trim();
+  c.mbti = $('cc-cr-mbti').value.trim();
+  c.zodiac = $('cc-cr-zodiac').value.trim();
+  c.height = $('cc-cr-height').value.trim();
+  c.appearance = $('cc-cr-appearance').value.trim();
+  c.created = true;
+
+  gameState.name = c.name;
+  gameState.house = c.house || '未分院';
+  const by = parseInt(c.birthYear);
+  if (by) gameState.time = (by + 11) + '年9月1日 · 上午';
+
+  LS.set('hp_state', gameState);
+  window.closeModal('modal-create');
+  window.renderStatus();
+  window.sendAction('（游戏开始）请描述我收到霍格沃茨录取通知书、在国王十字车站穿过 9¾ 站台登上特快列车的情景，作为故事的开场。');
+};
+
+// 创建隐藏的文件上传 input（用于侧栏头像）
+window.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('cc-sidebar-photo')) return;
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'cc-sidebar-photo'; inp.style.display = 'none';
+  inp.onchange = (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = (ev) => { gameState.charCard.photo = ev.target.result; LS.set('hp_state', gameState); window.renderCharSidebar(); };
+    r.readAsDataURL(f);
+  };
+  document.body.appendChild(inp);
+});
 // ==================== 重开与初始化 ====================
 window.resetGame = () => {
   if(!confirm('确定要清空进度重新开始吗？')) return;
@@ -796,8 +985,11 @@ window.addEventListener('DOMContentLoaded', () => {
     document.documentElement.style.setProperty('--app-blur', beautifySettings.blur + 'px');
     audio.volume = 1.0;
     if(displayHistory.length === 0) {
-      if(apiProfiles.find(p => p.id === activeApiProfileId)?.key) window.sendAction('（游戏开始）请描述我收到霍格沃茨录取通知书，在车站登上特快列车的情景，作为故事的开场。');
-      else window.pushDisplay('system', '👋 欢迎！先点右上角「⚙」填好设置，再点重开开始游戏。');
+      if (!gameState.charCard.created) {
+        window.openModal('modal-create');
+      } else {
+        window.pushDisplay('system', '👋 欢迎回来。在下方输入框写下你的行动。');
+      }
     }
     const ta = $('user-input');
     ta.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); window.onSend(); } });
