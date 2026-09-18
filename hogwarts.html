@@ -587,7 +587,7 @@ window.renderStatus = () => {
 };
 
 function makeMsgEl(role, text) { const d = document.createElement('div'); d.className = 'msg ' + role; d.textContent = text; return d; }
-window.renderStory = () => {function getMsgText(m) {
+function getMsgText(m) {
   if (m.versions && Array.isArray(m.versions)) {
     return m.versions[m.activeVersion || 0] || '';
   }
