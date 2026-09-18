@@ -418,7 +418,7 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
         </div>
         <div class="field"><label>温度 (0~2)</label><input id="cfg-temp" type="number" step="0.1" min="0" max="2"></div>
         <button class="primary" style="width:100%;padding:10px" onclick="window.saveApiConfig()">保存当前 API 配置</button>
-        <button class="danger" style="width:100%;padding:8px;margin-top:10px;" onclick="window.resetAllData()">⚠ 重置所有本地缓存（如果卡死点这里）</button>
+        <button class="danger" style="width:100%;padding:8px;margin-top:10px;" onclick="window.resetAllData()">⚠ 数据本地缓存（如果卡死点这里）</button>
       </div>
       <!-- 世界书 -->
       <div class="tab-pane" id="tab-world">
@@ -927,6 +927,7 @@ window.newForumPost = async () => {
   if (!title) return;
   const body = prompt('帖子内容：');
   if (!body) return;
+  
   gameState.forum.unshift({
     title, body, author: gameState.name || '你', time: '刚刚', replies: []
   });
@@ -934,35 +935,46 @@ window.newForumPost = async () => {
   LS.set('hp_state', gameState);
   window.renderForum();
 
-  // 让 AI 生成跟帖
+  // 让 AI 生成跟帖（如果没填 API，就用模拟跟帖）
   try {
-    const reply = await callAI(
-      const apiProfile = apiProfiles.find(p => p.id === activeApiProfileId);
-let reply = { reply: "模拟跟帖：楼主说得对！\n我也想去看看\n+1\n这学期变形术太难了\n你是哪个学院的？" };
-if (apiProfile && apiProfile.key) {
-  try {
-    const res = await fetch(apiProfile.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
-      body: JSON.stringify({
-        model: apiProfile.model,
-        messages: [{ role: 'user', content: `【学院论坛场景】玩家在霍格沃茨学院论坛发了一个新帖，标题《${title}》，内容：「${body}」。请生成 6-8 条其他学生（或匿名）的跟帖，用 JSON 的 reply 字段返回，每条一行，格式："网名：内容"。语气要像真实的霍格沃茨学生，围绕学院、课程、魁地奇、八卦等话题。` }],
-        temperature: 0.9
-      })
-    });
-    if (res.ok) {
-      const j = await res.json();
-      let txt = j?.choices?.[0]?.message?.content || '';
-      let s = txt.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
-      const a = s.indexOf('{'), b = s.lastIndexOf('}');
-      if (a >= 0 && b > a) s = s.slice(a, b + 1);
-      const parsed = JSON.parse(s);
-      if (parsed.reply) reply = parsed;
+    const apiProfile = apiProfiles.find(p => p.id === activeApiProfileId);
+    let reply = { reply: "模拟跟帖：楼主说得对！\n我也想去看看\n+1\n这学期变形术太难了\n你是哪个学院的？" };
+    
+    if (apiProfile && apiProfile.key) {
+      try {
+        const res = await fetch(apiProfile.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
+          body: JSON.stringify({
+            model: apiProfile.model,
+            messages: [{ role: 'user', content: `【学院论坛场景】玩家在霍格沃茨学院论坛发了一个新帖，标题《${title}》，内容：「${body}」。请生成 6-8 条其他学生（或匿名）的跟帖，用 JSON 的 reply 字段返回，每条一行，格式："网名：内容"。语气要像真实的霍格沃茨学生，围绕学院、课程、魁地奇、八卦等话题。` }],
+            temperature: 0.9
+          })
+        });
+        if (res.ok) {
+          const j = await res.json();
+          let txt = j?.choices?.[0]?.message?.content || '';
+          let s = txt.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+          const a = s.indexOf('{'), b = s.lastIndexOf('}');
+          if (a >= 0 && b > a) s = s.slice(a, b + 1);
+          const parsed = JSON.parse(s);
+          if (parsed.reply) reply = parsed;
+        }
+      } catch (e) {}
     }
-  } catch (e) {}
-}
+
+    if (reply.reply) {
+      reply.reply.split('\n').filter(Boolean).forEach(line => {
+        const idx = line.indexOf('：') >= 0 ? line.indexOf('：') : line.indexOf(':');
+        if (idx > 0) gameState.forum[0].replies.push({ author: line.slice(0,idx).trim(), text: line.slice(idx+1).trim() });
+        else gameState.forum[0].replies.push({ author: '匿名', text: line.trim() });
+      });
+      if (gameState.forum[0].replies.length > 8) gameState.forum[0].replies = gameState.forum[0].replies.slice(0, 8);
+      LS.set('hp_state', gameState);
+      window.renderForum();
+    }
+  } catch(e) {}
 };
-// ==================== 重置所有数据 ====================
 window.resetAllData = () => {
   if(!confirm('⚠️ 确定要清空所有本地缓存吗？这将重置 API、世界书、预设和游戏进度！')) return;
   localStorage.clear();
