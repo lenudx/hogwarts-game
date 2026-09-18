@@ -207,36 +207,9 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   </main>
 </div>
 <div class="modal" id="modal-create">
-  <div class="modal-box" style="max-width:540px;">
-    <div class="modal-head"><h3>📝 新生入学登记</h3></div>
-    <div class="modal-body">
-      <div class="field"><label>姓名</label><input id="cc-cr-name" placeholder="中文名"></div>
-      <div class="field"><label>英文名</label><input id="cc-cr-en" placeholder="Latin / English"></div>
-      <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>学院</label><select id="cc-cr-house" style="width:100%;"><option value="">未分院</option><option>格兰芬多</option><option>斯莱特林</option><option>拉文克劳</option><option>赫奇帕奇</option></select></div>
-        <div style="flex:1;"><label>血统</label><select id="cc-cr-blood" style="width:100%;"><option value="">未定</option><option>纯血</option><option>混血</option><option>麻瓜出身</option></select></div>
-      </div>
-      <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>发色</label><input id="cc-cr-hair" placeholder="黑 / 金"></div>
-        <div style="flex:1;"><label>瞳色</label><input id="cc-cr-eye" placeholder="灰蓝 / 绿"></div>
-      </div>
-      <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>出生年份</label><input id="cc-cr-birthyear" type="number" placeholder="1980"></div>
-        <div style="flex:1;"><label>生日（月-日）</label><input id="cc-cr-birthday" placeholder="03-15"></div>
-      </div>
-      <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>守护神</label><input id="cc-cr-patronus" placeholder="牝鹿"></div>
-        <div style="flex:1;"><label>宠物</label><input id="cc-cr-pet" placeholder="可空"></div>
-      </div>
-      <div class="field"><label>魔杖（杖身 / 杖芯 / 长度 / 柔韧度）</label><input id="cc-cr-wand" placeholder="冬青木 / 凤凰尾羽 / 11英寸 / 柔韧"></div>
-      <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>MBTI</label><input id="cc-cr-mbti" placeholder="INTJ"></div>
-        <div style="flex:1;"><label>星座</label><input id="cc-cr-zodiac" placeholder="双鱼座"></div>
-      </div>
-      <div class="field"><label>身高（毕业后）</label><input id="cc-cr-height" placeholder="175cm"></div>
-      <div class="field"><label>外貌</label><textarea id="cc-cr-appearance" rows="2" placeholder="发色、瞳色、体态、特殊特征"></textarea></div>
-      <button class="primary" style="width:100%;padding:10px;margin-top:6px;" onclick="window.ccConfirmCreate()">入学</button>
-    </div>
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head"><h3 id="cc-create-title">📝 建立档案</h3></div>
+    <div class="modal-body" id="cc-create-body"></div>
   </div>
 </div>
 <div class="modal" id="modal-settings">
@@ -793,13 +766,165 @@ window.importBeautifyJSON = (event) => {
 const DEFAULT_CHARCARD = {
   name: '', en: '', house: '', hair: '', eye: '', pet: '', patronus: '',
   wand: '', blood: '', birthYear: '', birthday: '', mbti: '', zodiac: '', height: '',
-  appearance: '', photo: '', created: false
+  appearance: '', photo: '', created: false,
+  timeline: 'child', identityType: 'student',
+  occupation: '', rank: '', workplace: '', yearsWorked: '', occupationDesc: '',
+  enrollYear: '', gradYear: ''
 };
 if (!gameState.charCard) gameState.charCard = JSON.parse(JSON.stringify(DEFAULT_CHARCARD));
 Object.keys(DEFAULT_CHARCARD).forEach(k => {
   if (gameState.charCard[k] === undefined) gameState.charCard[k] = DEFAULT_CHARCARD[k];
 });
 
+// ==================== 开场设置：时间线 + 身份 + 职业 ====================
+const TIMELINES = [
+  { id:'ancient',  name:'远古时期', range:'约 10 世纪 — 19 世纪', birthRange:[900,1870],  desc:'霍格沃茨四位创始人的时代，是魔法世界一切的起点。' },
+  { id:'ancestor', name:'祖世代',   range:'约 1881 — 1945',       birthRange:[1860,1925], desc:'邓布利多、格林德沃的青年时代，对应《神奇动物》系列。' },
+  { id:'long',     name:'长世代',   range:'约 1926 — 1945',       birthRange:[1900,1930], desc:'汤姆·里德尔（伏地魔）的学生时代。' },
+  { id:'parent',   name:'亲世代',   range:'约 1950 — 1970',       birthRange:[1930,1955], desc:'哈利的父母辈：詹姆、莉莉、斯内普、小天狼星的学生时代。' },
+  { id:'child',    name:'子世代',   range:'约 1970 — 1998',       birthRange:[1960,1980], desc:'核心主线！哈利、罗恩、赫敏这一代（1991-1998）。' },
+  { id:'grand',    name:'孙世代',   range:'1998 年后',             birthRange:[1980,2010], desc:'哈利、罗恩等人的孩子们的故事。' }
+];
+
+const OCCUPATIONS = [
+  '傲罗','打击手','缄默人','治疗师','药剂师','魔药材料商','教授','助教','图书馆员','研究员',
+  '解咒员','古灵阁职员','魔杖制作师','扫帚制造师','魔药公司职员','店主','酒吧老板','魁地奇球员',
+  '巫师小报记者','编辑','电台主持人','作家','巫师歌手','摄影师','肖像画师','驯龙者',
+  '神奇动物学家','护林员','飞路网管理员','门钥匙管理员','幻影移形测试员','麻瓜联络员',
+  '国际魔法合作司职员','魔法法律执行司职员','神奇动物管理控制司职员','魔法交通司职员',
+  '神秘事务司职员','威森加摩成员','魔法部长','司长','创业者','赏金猎人','黑市商人','食死徒'
+];
+
+let ccCreateStep = 'timeline';
+let ccCreateData = {};
+
+window.openCreateModal = () => {
+  ccCreateStep = 'timeline';
+  ccCreateData = {};
+  $('cc-create-title').textContent = '📝 建立档案';
+  renderCreateStep();
+  window.openModal('modal-create');
+};
+
+function renderCreateStep(){
+  const box = $('cc-create-body');
+  if(!box) return;
+
+  if (ccCreateStep === 'timeline') {
+    box.innerHTML = `
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
+        选择你想生活的时代。不同时间线会决定你所在的年代、可遇见的角色、以及课程或职业。
+      </div>
+      ${TIMELINES.map(t => `
+        <button onclick="window.ccPickTimeline('${t.id}')" style="width:100%;text-align:left;padding:12px;background:rgba(13,20,36,.85);border:1px solid var(--border-dim);border-radius:8px;cursor:pointer;margin-bottom:8px;">
+          <div style="font-size:13px;color:var(--accent-cyan);font-family:'Cinzel',serif;font-weight:600;">${t.name}</div>
+          <div style="font-size:10px;color:var(--text-dim);margin:3px 0 5px;">${t.range}</div>
+          <div style="font-size:11px;color:var(--text-main);line-height:1.5;">${t.desc}</div>
+        </button>
+      `).join('')}
+    `;
+    return;
+  }
+
+  if (ccCreateStep === 'identity') {
+    const tl = TIMELINES.find(t => t.id === ccCreateData.timeline);
+    box.innerHTML = `
+      <div style="font-size:12px;color:var(--accent-cyan);margin-bottom:6px;">时代：${tl.name} · ${tl.range}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">你是以什么身份进入这个世界？</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button onclick="window.ccPickIdentity('student')" style="padding:20px 10px;background:rgba(13,20,36,.85);border:1px solid var(--border-dim);border-radius:8px;cursor:pointer;">
+          <div style="font-size:22px;margin-bottom:6px;">🎓</div>
+          <div style="font-size:13px;color:var(--accent-cyan);">学生</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">在霍格沃茨就读</div>
+        </button>
+        <button onclick="window.ccPickIdentity('adult')" style="padding:20px 10px;background:rgba(13,20,36,.85);border:1px solid var(--border-dim);border-radius:8px;cursor:pointer;">
+          <div style="font-size:22px;margin-bottom:6px;">💼</div>
+          <div style="font-size:13px;color:var(--accent-cyan);">成年人</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">已毕业，有自己的职业</div>
+        </button>
+      </div>
+      <button onclick="window.ccCreateBack()" style="width:100%;margin-top:14px;padding:8px;font-size:12px;">← 返回选择时代</button>
+    `;
+    return;
+  }
+
+  if (ccCreateStep === 'form') {
+    const tl = TIMELINES.find(t => t.id === ccCreateData.timeline);
+    const isStudent = ccCreateData.identityType === 'student';
+    const birthHint = `建议 ${tl.birthRange[0]}—${tl.birthRange[1]}`;
+    box.innerHTML = `
+      <div style="font-size:11px;color:var(--accent-cyan);margin-bottom:10px;">
+        ${tl.name} · ${isStudent ? '学生' : '成年人'}
+      </div>
+
+      <div class="field"><label>姓名</label><input id="cc-cr-name" placeholder="中文名"></div>
+      <div class="field"><label>英文名</label><input id="cc-cr-en" placeholder="Latin / English"></div>
+
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>学院</label><select id="cc-cr-house" style="width:100%;">
+          <option value="">未分院</option><option>格兰芬多</option><option>斯莱特林</option><option>拉文克劳</option><option>赫奇帕奇</option>
+        </select></div>
+        <div style="flex:1;"><label>血统</label><select id="cc-cr-blood" style="width:100%;">
+          <option value="">未定</option><option>纯血</option><option>混血</option><option>麻瓜出身</option>
+        </select></div>
+      </div>
+
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>发色</label><input id="cc-cr-hair" placeholder="黑 / 金"></div>
+        <div style="flex:1;"><label>瞳色</label><input id="cc-cr-eye" placeholder="灰蓝 / 绿"></div>
+      </div>
+
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>出生年份（${birthHint}）</label><input id="cc-cr-birthyear" type="number" placeholder="${tl.birthRange[0]}"></div>
+        <div style="flex:1;"><label>生日（月-日）</label><input id="cc-cr-birthday" placeholder="03-15"></div>
+      </div>
+
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>守护神</label><input id="cc-cr-patronus" placeholder="牝鹿"></div>
+        <div style="flex:1;"><label>宠物</label><input id="cc-cr-pet" placeholder="可空"></div>
+      </div>
+
+      <div class="field"><label>魔杖（杖身 / 杖芯 / 长度 / 柔韧度）</label><input id="cc-cr-wand" placeholder="冬青木 / 凤凰尾羽 / 11英寸 / 柔韧"></div>
+
+      <div class="field" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>MBTI</label><input id="cc-cr-mbti" placeholder="INTJ"></div>
+        <div style="flex:1;"><label>星座</label><input id="cc-cr-zodiac" placeholder="双鱼座"></div>
+      </div>
+
+      <div class="field"><label>身高（毕业后）</label><input id="cc-cr-height" placeholder="175cm"></div>
+      <div class="field"><label>外貌</label><textarea id="cc-cr-appearance" rows="2" placeholder="发色、瞳色、体态、特殊特征"></textarea></div>
+
+      ${isStudent ? `
+        <div class="field"><label>入学年份（不填按 11 岁入学推算）</label><input id="cc-cr-enroll" type="number" placeholder="${tl.birthRange[0]+11}"></div>
+      ` : `
+        <div class="field"><label>职业</label>
+          <select id="cc-cr-occupation" style="width:100%;">
+            <option value="">请选择</option>
+            ${OCCUPATIONS.map(o => `<option>${o}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>具体职位 / 等级</label><input id="cc-cr-rank" placeholder="如 初级傲罗 / 资深治疗师"></div>
+        <div class="field"><label>工作地点 / 所属部门</label><input id="cc-cr-workplace" placeholder="如 魔法部 · 魔法法律执行司"></div>
+        <div class="field"><label>工作年限</label><input id="cc-cr-yearsworked" placeholder="如 5 年"></div>
+        <div class="field"><label>职业描述</label><textarea id="cc-cr-occupationdesc" rows="2" placeholder="日常做什么、上级是谁、有哪些同事..."></textarea></div>
+      `}
+
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <button onclick="window.ccCreateBack()" style="flex:1;padding:10px;">← 返回</button>
+        <button class="primary" onclick="window.ccConfirmCreate()" style="flex:2;padding:10px;">进入世界</button>
+      </div>
+    `;
+    return;
+  }
+}
+
+window.ccPickTimeline = (id) => { ccCreateData.timeline = id; ccCreateStep = 'identity'; renderCreateStep(); };
+window.ccPickIdentity = (type) => { ccCreateData.identityType = type; ccCreateStep = 'form'; renderCreateStep(); };
+window.ccCreateBack = () => {
+  if (ccCreateStep === 'form') ccCreateStep = 'identity';
+  else if (ccCreateStep === 'identity') ccCreateStep = 'timeline';
+  renderCreateStep();
+};
 function ccGetCurrentYear() {
   if (gameState.time) { const m = gameState.time.match(/(\d{4})年/); if (m) return parseInt(m[1]); }
   return 1991;
@@ -831,36 +956,58 @@ function ccGradeCourses(g) {
 window.renderCharSidebar = () => {
   const c = gameState.charCard;
   const box = $('cc-sidebar-body');
-  if (!box) return;
+  if(!box) return;
 
+  const isStudent = c.identityType !== 'adult';
+  const tl = TIMELINES.find(t => t.id === c.timeline) || TIMELINES[4];
   const by = ccGetBirthYear();
   const cy = ccGetCurrentYear();
-  const ey = by ? by + 11 : null;
-  const gy = ey ? ey + 7 : null;
-  const grade = ccGetGrade();
   const st = gameState.stats;
 
   const photoHtml = c.photo
     ? `<img src="${c.photo}" class="cc-sidebar-photo" onclick="document.getElementById('cc-sidebar-photo').click()">`
     : `<div class="cc-sidebar-photo-empty" onclick="document.getElementById('cc-sidebar-photo').click()">+</div>`;
 
-  let tl = by ? `出生 ${by} · 入学 ${ey} · 毕业 ${gy}` : '（未填生日）';
-  tl += `<br>当前：<span class="cur">${cy} 年 · ${grade} 年级</span>`;
-
   const row = (k, v) => `<div class="cc-row"><div class="cc-k">${k}</div><div class="cc-v ${v?'':'empty'}">${v?esc(v):'（空）'}</div></div>`;
 
-  let coursesHtml = '';
-  for (let g = 1; g <= grade; g++) {
-    coursesHtml += `<div class="cc-subject-block"><div class="sb-title">${g} 年级</div>${ccGradeCourses(g).map(s=>`<div class="cc-subject-line"><span>${s}</span></div>`).join('')}</div>`;
+  let timelineHtml = '';
+  if (isStudent) {
+    const ey = c.enrollYear ? parseInt(c.enrollYear) : (by ? by + 11 : null);
+    const gy = ey ? ey + 7 : null;
+    const grade = ey ? Math.max(1, Math.min(7, cy - ey + 1)) : 1;
+    timelineHtml = (by ? `出生 ${by} · ` : '') + (ey ? `入学 ${ey} · 毕业 ${gy}` : '（未填生日）') + `<br>当前：<span class="cur">${cy} 年 · ${grade} 年级</span>`;
+  } else {
+    timelineHtml = (by ? `出生 ${by} · ` : '') + `成年巫师<br>当前：<span class="cur">${cy} 年</span>`;
   }
-  if (!coursesHtml) coursesHtml = '<div style="font-size:11px;color:var(--text-faint);">（未入学）</div>';
 
-  const owl = grade >= 5;
-  const newt = grade >= 6;
+  let coursesOrJobHtml = '';
+  const ey = c.enrollYear ? parseInt(c.enrollYear) : (by ? by + 11 : null);
+  const grade = ey ? Math.max(1, Math.min(7, cy - ey + 1)) : 1;
+
+  if (isStudent) {
+    for (let g = 1; g <= grade; g++) {
+      coursesOrJobHtml += `<div class="cc-subject-block"><div class="sb-title">${g} 年级</div>${ccGradeCourses(g).map(s=>`<div class="cc-subject-line"><span>${s}</span></div>`).join('')}</div>`;
+    }
+    if (!coursesOrJobHtml) coursesOrJobHtml = '<div style="font-size:11px;color:var(--text-faint);">（未入学）</div>';
+  } else {
+    coursesOrJobHtml = `
+      ${row('职业', c.occupation)}
+      ${row('职位', c.rank)}
+      ${row('工作地点', c.workplace)}
+      ${row('工作年限', c.yearsWorked)}
+      <div class="cc-row" style="flex-direction:column;align-items:stretch;"><div class="cc-k" style="margin-bottom:4px;">职业描述</div><div class="cc-v ${c.occupationDesc?'':'empty'}">${c.occupationDesc?esc(c.occupationDesc):'（空）'}</div></div>
+    `;
+  }
+
+  const owl = isStudent && grade >= 5;
+  const newt = isStudent && grade >= 6;
 
   box.innerHTML = `
     <div class="cc-sidebar-photo-wrap">${photoHtml}</div>
-    <div class="cc-sidebar-timeline">${tl}</div>
+    <div class="cc-sidebar-timeline">
+      <div style="color:var(--accent-cyan);font-size:11px;">${tl.name}</div>
+      <div>${timelineHtml}</div>
+    </div>
 
     <div class="cc-sec open">
       <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📌 基本</h4><span class="arrow">▶</span></div>
@@ -871,7 +1018,6 @@ window.renderCharSidebar = () => {
         ${row('血统', c.blood)}
         ${row('发色瞳色', (c.hair||'')+(c.eye?(' / '+c.eye):''))}
         ${row('生日', c.birthday)}
-        ${row('入学/毕业', ey ? `${ey}—${gy}` : '')}
       </div>
     </div>
 
@@ -894,10 +1040,17 @@ window.renderCharSidebar = () => {
       </div>
     </div>
 
-    <div class="cc-sec">
-      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📚 课程（随年级解锁）</h4><span class="arrow">▶</span></div>
-      <div class="cc-sec-body">${coursesHtml}</div>
-    </div>
+    ${isStudent ? `
+      <div class="cc-sec">
+        <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📚 课程（随年级解锁）</h4><span class="arrow">▶</span></div>
+        <div class="cc-sec-body">${coursesOrJobHtml}</div>
+      </div>
+    ` : `
+      <div class="cc-sec open">
+        <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>💼 职业</h4><span class="arrow">▶</span></div>
+        <div class="cc-sec-body">${coursesOrJobHtml}</div>
+      </div>
+    `}
 
     ${owl ? `<div class="cc-sec"><div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📝 O.W.L.（五年级）</h4><span class="arrow">▶</span></div><div class="cc-sec-body">${['魔药学','魔咒学','魔法史','变形术','草药学','天文学','黑魔法防御术','飞行课'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}<div class="cc-subject-block"><div class="sb-title">选修课（五选二）</div>${['神奇动物保护学','古代如尼文研究','算数占卜','麻瓜研究','占卜学'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}</div></div></div>` : ''}
 
@@ -926,6 +1079,12 @@ window.renderCharSidebar = () => {
 
 window.ccConfirmCreate = () => {
   const c = gameState.charCard;
+  const tl = TIMELINES.find(t => t.id === ccCreateData.timeline);
+  const isStudent = ccCreateData.identityType === 'student';
+
+  c.timeline = ccCreateData.timeline;
+  c.identityType = ccCreateData.identityType;
+
   c.name = $('cc-cr-name').value.trim() || '未命名';
   c.en = $('cc-cr-en').value.trim();
   c.house = $('cc-cr-house').value;
@@ -941,17 +1100,40 @@ window.ccConfirmCreate = () => {
   c.zodiac = $('cc-cr-zodiac').value.trim();
   c.height = $('cc-cr-height').value.trim();
   c.appearance = $('cc-cr-appearance').value.trim();
-  c.created = true;
 
+  if (isStudent) {
+    const ey = parseInt($('cc-cr-enroll').value) || (parseInt(c.birthYear) + 11);
+    c.enrollYear = String(ey);
+    c.gradYear = String(ey + 7);
+    c.occupation = ''; c.rank = ''; c.workplace = ''; c.yearsWorked = ''; c.occupationDesc = '';
+    gameState.time = ey + '年9月1日 · 上午';
+    gameState.scene = '霍格沃茨特快列车';
+  } else {
+    c.occupation = $('cc-cr-occupation').value || '';
+    c.rank = $('cc-cr-rank').value.trim();
+    c.workplace = $('cc-cr-workplace').value.trim();
+    c.yearsWorked = $('cc-cr-yearsworked').value.trim();
+    c.occupationDesc = $('cc-cr-occupationdesc').value.trim();
+    c.enrollYear = ''; c.gradYear = '';
+    const by = parseInt(c.birthYear);
+    const midYear = Math.floor((tl.birthRange[0] + tl.birthRange[1]) / 2) + 22;
+    const year = by ? (by + 22) : midYear;
+    gameState.time = year + '年 · 上午';
+    gameState.scene = '对角巷';
+  }
+
+  c.created = true;
   gameState.name = c.name;
   gameState.house = c.house || '未分院';
-  const by = parseInt(c.birthYear);
-  if (by) gameState.time = (by + 11) + '年9月1日 · 上午';
 
   LS.set('hp_state', gameState);
   window.closeModal('modal-create');
   window.renderStatus();
-  window.sendAction('（游戏开始）请描述我收到霍格沃茨录取通知书、在国王十字车站穿过 9¾ 站台登上特快列车的情景，作为故事的开场。');
+
+  const opening = isStudent
+    ? `（游戏开始）我的角色是 ${tl.name} 的学生。请描述我收到霍格沃茨录取通知书、在国王十字车站穿过 9¾ 站台登上特快列车的情景，作为故事的开场。`
+    : `（游戏开始）我的角色是一名 ${c.occupation || '巫师'}（${tl.name}）。请描述我在这个时代的日常生活开场——我的工作地点、周围同事、当下正在处理的事情。`;
+  window.sendAction(opening);
 };
 
 // 创建隐藏的文件上传 input（用于侧栏头像）
@@ -986,7 +1168,7 @@ window.addEventListener('DOMContentLoaded', () => {
     audio.volume = 1.0;
     if(displayHistory.length === 0) {
       if (!gameState.charCard.created) {
-        window.openModal('modal-create');
+        window.openCreateModal();
       } else {
         window.pushDisplay('system', '👋 欢迎回来。在下方输入框写下你的行动。');
       }
