@@ -126,6 +126,55 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 @keyframes bounce { 0%, 60%, 100% { opacity: 0.25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
 @media (min-width: 821px) { .only-mobile { display: none; } #sidebar { position: static; transform: none !important; } }
 @media (max-width: 480px) { .msg.assistant { padding: 12px 13px; font-size: 13px; } #story { padding: 12px; } #options { padding: 0 12px 6px; } header { padding: 4px 8px; } .header-info .h-line { font-size: 10px; } }
+/* ===== 消息长按菜单 + 版本切换 ===== */
+.msg { position: relative; }
+.msg-ver-badge {
+  position: absolute; top: 6px; right: 8px;
+  font-size: 9px; color: var(--text-dim);
+  background: rgba(0,0,0,0.5);
+  padding: 1px 7px; border-radius: 8px;
+  pointer-events: none;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 1px;
+}
+.msg-menu-overlay {
+  position: fixed; inset: 0; z-index: 2200;
+  background: rgba(0,0,0,0.7);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.msg-menu-overlay.show { display: flex; }
+.msg-menu-box {
+  background: rgba(13,20,36,0.98);
+  border: 1px solid var(--border-glow);
+  border-radius: 12px;
+  min-width: 240px; max-width: 320px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+.msg-menu-title {
+  padding: 12px 18px 8px;
+  font-size: 10px; color: var(--text-dim);
+  letter-spacing: 2px;
+  border-bottom: 1px solid var(--border-dim);
+  font-family: 'Cinzel', serif;
+}
+.msg-menu-box button {
+  display: block; width: 100%;
+  padding: 14px 18px;
+  background: transparent;
+  border: none; border-bottom: 1px solid var(--border-dim);
+  color: var(--text-main);
+  font-size: 14px; text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.msg-menu-box button:last-child { border-bottom: none; }
+.msg-menu-box button:hover { background: rgba(92,156,255,0.1); }
+.msg-menu-box button.danger { color: var(--danger); }
+.msg-menu-box button.cancel { color: var(--text-dim); text-align: center; }
 /* ===== 开场迷幻文字动画 ===== */
 #intro-anim {
   position: fixed; inset: 0; z-index: 2500;
@@ -301,6 +350,15 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       </div>
     </div>
   </main>
+</div>
+<div class="msg-menu-overlay" id="msg-menu-overlay" onclick="window.hideMesMenu(event)">
+  <div class="msg-menu-box" onclick="event.stopPropagation()">
+    <div class="msg-menu-title" id="msg-menu-title">◈ 消息操作</div>
+    <button onclick="window.menuRegen()">🔁 再说一个（重新生成）</button>
+    <button onclick="window.menuEdit()">✏️ 修改内容</button>
+    <button onclick="window.menuDelete()" class="danger">🗑 删除这条消息</button>
+    <button onclick="window.hideMesMenu()" class="cancel">取消</button>
+  </div>
 </div>
 <div id="intro-anim">
   <button id="intro-skip" onclick="window.skipIntroAnim()">跳过 ↦</button>
@@ -483,7 +541,16 @@ if (!gameState || !gameState.stats) gameState = JSON.parse(JSON.stringify(DEFAUL
 if (!Array.isArray(apiProfiles) || apiProfiles.length === 0) apiProfiles = DEFAULT_API_PROFILES;
 if (!Array.isArray(worldbooks) || worldbooks.length === 0) worldbooks = DEFAULT_WORLDBOOKS;
 if (!Array.isArray(presets) || presets.length === 0) presets = DEFAULT_PRESETS;
-if (!presets[0].prompts) presets = DEFAULT_PRESETS; // 兼容旧版预设格式
+if (!presets[0].prompts) presets = DEFAULT_PRESETS; // 兼容旧存档：把 text 转成 versions 数组
+if (Array.isArray(displayHistory)) {
+  displayHistory.forEach(m => {
+    if (m && m.text !== undefined && !m.versions) {
+      m.versions = [m.text];
+      m.activeVersion = 0;
+      delete m.text;
+    }
+  });
+}
 
 // ==================== 界面渲染 ====================
 window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
@@ -520,17 +587,252 @@ window.renderStatus = () => {
 };
 
 function makeMsgEl(role, text) { const d = document.createElement('div'); d.className = 'msg ' + role; d.textContent = text; return d; }
-window.renderStory = () => { const box = $('story'); box.innerHTML = ''; displayHistory.forEach(m => box.appendChild(makeMsgEl(m.role, m.text))); requestAnimationFrame(() => box.scrollTop = box.scrollHeight); };
-window.pushDisplay = (role, text) => {
-  displayHistory.push({ role, text }); if (displayHistory.length > 200) displayHistory = displayHistory.slice(-200);
-  $('story').appendChild(makeMsgEl(role, text)); $('story').scrollTop = $('story').scrollHeight; LS.set('hp_display', displayHistory);
+window.renderStory = () => {function getMsgText(m) {
+  if (m.versions && Array.isArray(m.versions)) {
+    return m.versions[m.activeVersion || 0] || '';
+  }
+  return m.text || '';
+}
+
+function ensureVersions(m) {
+  if (!m.versions) {
+    m.versions = [m.text || ''];
+    m.activeVersion = 0;
+    delete m.text;
+  }
+  if (typeof m.activeVersion !== 'number') m.activeVersion = 0;
+}
+
+window.renderStory = () => {
+  const box = $('story');
+  box.innerHTML = '';
+  if (!displayHistory.length) {
+    box.innerHTML = '<div style="text-align:center;color:#4c5e7d;font-size:12px;padding:40px 10px;">还没有开始。</div>';
+    return;
+  }
+
+  displayHistory.forEach((m, i) => {
+    ensureVersions(m);
+    const text = getMsgText(m);
+    const el = makeMsgEl(m.role, text);
+    el.dataset.idx = i;
+
+    if (m.role === 'assistant') {
+      const verCount = m.versions.length;
+      if (verCount > 1) {
+        const badge = document.createElement('span');
+        badge.className = 'msg-ver-badge';
+        badge.textContent = (m.activeVersion + 1) + ' / ' + verCount;
+        el.appendChild(badge);
+      }
+      attachMsgGestures(el, i);
+    }
+    box.appendChild(el);
+  });
+  requestAnimationFrame(() => box.scrollTop = box.scrollHeight);
 };
-window.renderOptions = (opts) => {
-  const box = $('options'); box.innerHTML = '';
-  (opts || []).forEach(o => { const b = document.createElement('button'); b.textContent = o; b.onclick = () => { box.innerHTML = ''; window.sendAction(o); }; box.appendChild(b); });
+
+// 长按 + 滑动
+function attachMsgGestures(el, idx) {
+  let startX = 0, startY = 0;
+  let longPressTimer = null;
+  let moved = false;
+  let didTrigger = false;
+
+  const cancelLong = () => {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  };
+
+  const onStart = (e) => {
+    const t = e.touches ? e.touches[0] : e;
+    startX = t.clientX; startY = t.clientY;
+    moved = false; didTrigger = false;
+    cancelLong();
+    longPressTimer = setTimeout(() => {
+      if (!moved) {
+        didTrigger = true;
+        if (navigator.vibrate) navigator.vibrate(30);
+        window.showMesMenu(idx);
+      }
+    }, 520);
+  };
+
+  const onMove = (e) => {
+    const t = e.touches ? e.touches[0] : e;
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      moved = true;
+      cancelLong();
+    }
+    // 水平滑动切版本
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.6) {
+      if (!didTrigger) {
+        didTrigger = true;
+        window.swipeMsg(idx, dx < 0 ? 1 : -1);
+      }
+    }
+  };
+
+  const onEnd = () => { cancelLong(); };
+
+  el.addEventListener('touchstart', onStart, { passive: true });
+  el.addEventListener('touchmove', onMove, { passive: true });
+  el.addEventListener('touchend', onEnd, { passive: true });
+  el.addEventListener('touchcancel', onEnd, { passive: true });
+  el.addEventListener('mousedown', onStart);
+  el.addEventListener('mousemove', onMove);
+  el.addEventListener('mouseup', onEnd);
+  el.addEventListener('mouseleave', onEnd);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+// ==================== 消息菜单 ====================
+let menuTargetIdx = -1;
+
+window.showMesMenu = (idx) => {
+  if (idx < 0 || !displayHistory[idx]) return;
+  menuTargetIdx = idx;
+  const m = displayHistory[idx];
+  const title = $('msg-menu-title');
+  if (title) {
+    const verCount = m.versions ? m.versions.length : 1;
+    title.textContent = '◈ 叙事 · 第 ' + ((m.activeVersion || 0) + 1) + ' / ' + verCount + ' 版';
+  }
+  $('msg-menu-overlay').classList.add('show');
 };
-window.showLoading = () => { window.hideLoading(); const d = document.createElement('div'); d.className = 'msg assistant loading'; d.id = 'loading-msg'; d.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'; $('story').appendChild(d); $('story').scrollTop = $('story').scrollHeight; };
-window.hideLoading = () => { const e = $('loading-msg'); if (e) e.remove(); };
+
+window.hideMesMenu = (e) => {
+  if (e && e.target !== e.currentTarget) return;
+  $('msg-menu-overlay').classList.remove('show');
+  menuTargetIdx = -1;
+};
+
+// 删除
+window.menuDelete = () => {
+  const idx = menuTargetIdx;
+  window.hideMesMenu();
+  if (idx < 0 || !displayHistory[idx]) return;
+  if (!confirm('删除这条消息？')) return;
+  displayHistory.splice(idx, 1);
+  LS.set('hp_display', displayHistory);
+  window.renderStory();
+};
+
+// 修改
+window.menuEdit = () => {
+  const idx = menuTargetIdx;
+  window.hideMesMenu();
+  if (idx < 0 || !displayHistory[idx]) return;
+  const m = displayHistory[idx];
+  ensureVersions(m);
+  const cur = getMsgText(m);
+  const newText = prompt('修改内容：', cur);
+  if (newText === null) return;
+  if (!newText.trim()) { alert('内容不能为空'); return; }
+  m.versions[m.activeVersion] = newText;
+  LS.set('hp_display', displayHistory);
+  window.renderStory();
+};
+
+// 再说一个（重新生成）
+window.menuRegen = async () => {
+  const idx = menuTargetIdx;
+  window.hideMesMenu();
+  if (idx < 0 || !displayHistory[idx]) return;
+  const m = displayHistory[idx];
+  if (m.role !== 'assistant') {
+    alert('只能对 AI 叙事的回复重新生成。');
+    return;
+  }
+  ensureVersions(m);
+
+  // 找到上一条用户消息
+  let playerIdx = idx - 1;
+  while (playerIdx >= 0 && displayHistory[playerIdx].role !== 'user') playerIdx--;
+  if (playerIdx < 0) { alert('找不到对应的玩家输入。'); return; }
+  const playerText = getMsgText(displayHistory[playerIdx]);
+
+  // 重新构建上下文
+  const context = displayHistory
+    .slice(0, idx)
+    .filter(x => x.role === 'assistant' || x.role === 'user')
+    .map(x => (x.role === 'user' ? '玩家：' : '') + getMsgText(x))
+    .slice(-10)
+    .join('\n\n');
+
+  window.showLoading();
+
+  try {
+    const apiProfile = apiProfiles.find(p => p.id === activeApiProfileId);
+    let raw;
+    if (!apiProfile || !apiProfile.key) {
+      await new Promise(r => setTimeout(r, 800));
+      raw = JSON.stringify({ narration: `[模拟模式] 这是重新生成的版本（${m.versions.length + 1}）。请先在 ⚙ 里填 API。`, state_changes: {}, options: [] });
+    } else {
+      const messages = [
+        { role: 'system', content: buildSystemPrompt(playerText) },
+        { role: 'user', content: `【重新生成】最近剧情：\n${context}\n\n玩家行动：${playerText}\n\n请给出与之前不同的描写角度或情节走向。` }
+      ];
+      const res = await fetch(apiProfile.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
+        body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const json = await res.json();
+      raw = json?.choices?.[0]?.message?.content;
+      if (!raw) throw new Error('接口返回格式异常');
+    }
+
+    window.hideLoading();
+    let s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+    const a = s.indexOf('{'), b = s.lastIndexOf('}');
+    if (a >= 0 && b > a) s = s.slice(a, b + 1);
+    let data;
+    try { data = JSON.parse(s); } catch(e) { data = { narration: raw, state_changes: {}, options: [] }; }
+
+    const newText = data.narration || data.text || '（无叙述）';
+    m.versions.push(newText);
+    m.activeVersion = m.versions.length - 1;
+
+    // 应用状态变化
+    if (data.state_changes) {
+      const c = data.state_changes, st = gameState.stats;
+      if (typeof c.mana === 'number') st.mana = clamp(st.mana + c.mana, 0, st.maxMana);
+      if (typeof c.stamina === 'number') st.stamina = clamp(st.stamina + c.stamina, 0, st.maxStamina);
+      if (typeof c.galleons === 'number') st.galleons = Math.max(0, st.galleons + c.galleons);
+      if (c.scene) gameState.scene = c.scene;
+      if (c.time) gameState.time = c.time;
+      if (c.house) gameState.house = c.house;
+      if (Array.isArray(c.inventory_add)) c.inventory_add.forEach(i => { if(!gameState.inventory.includes(i)) gameState.inventory.push(i); });
+      if (c.relations) for(const [k,v] of Object.entries(c.relations)) { gameState.relations[k] = (gameState.relations[k]||0) + v; }
+      if (Array.isArray(c.actors)) gameState.actors = c.actors;
+      LS.set('hp_state', gameState);
+      window.renderStatus();
+    }
+
+    LS.set('hp_display', displayHistory);
+    window.renderStory();
+    if (data.options) window.renderOptions(data.options);
+  } catch(err) {
+    window.hideLoading();
+    window.pushDisplay('system', '⚠ 重新生成失败：' + err.message);
+  }
+};
+
+// 左右滑动切版本
+window.swipeMsg = (idx, dir) => {
+  const m = displayHistory[idx];
+  if (!m || m.role !== 'assistant') return;
+  ensureVersions(m);
+  if (m.versions.length < 2) return;
+  const newVer = (m.activeVersion || 0) + dir;
+  if (newVer < 0 || newVer >= m.versions.length) return;
+  m.activeVersion = newVer;
+  LS.set('hp_display', displayHistory);
+  window.renderStory();
+};
 
 // ==================== 重置所有数据 ====================
 window.resetAllData = () => {
