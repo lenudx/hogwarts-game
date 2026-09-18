@@ -937,19 +937,30 @@ window.newForumPost = async () => {
   // 让 AI 生成跟帖
   try {
     const reply = await callAI(
-      `【学院论坛场景】玩家在霍格沃茨学院论坛发了一个新帖，标题《${title}》，内容：「${body}」。请生成 6-8 条其他学生（或匿名）的跟帖，用 JSON 的 reply 字段返回，每条一行，格式："网名：内容"。语气要像真实的霍格沃茨学生，围绕学院、课程、魁地奇、八卦等话题。`
-    );
-    if (reply.reply) {
-      reply.reply.split('\n').filter(Boolean).forEach(line => {
-        const idx = line.indexOf('：') >= 0 ? line.indexOf('：') : line.indexOf(':');
-        if (idx > 0) gameState.forum[0].replies.push({ author: line.slice(0,idx).trim(), text: line.slice(idx+1).trim() });
-        else gameState.forum[0].replies.push({ author: '匿名', text: line.trim() });
-      });
-      if (gameState.forum[0].replies.length > 8) gameState.forum[0].replies = gameState.forum[0].replies.slice(0, 8);
-      LS.set('hp_state', gameState);
-      window.renderForum();
+      const apiProfile = apiProfiles.find(p => p.id === activeApiProfileId);
+let reply = { reply: "模拟跟帖：楼主说得对！\n我也想去看看\n+1\n这学期变形术太难了\n你是哪个学院的？" };
+if (apiProfile && apiProfile.key) {
+  try {
+    const res = await fetch(apiProfile.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
+      body: JSON.stringify({
+        model: apiProfile.model,
+        messages: [{ role: 'user', content: `【学院论坛场景】玩家在霍格沃茨学院论坛发了一个新帖，标题《${title}》，内容：「${body}」。请生成 6-8 条其他学生（或匿名）的跟帖，用 JSON 的 reply 字段返回，每条一行，格式："网名：内容"。语气要像真实的霍格沃茨学生，围绕学院、课程、魁地奇、八卦等话题。` }],
+        temperature: 0.9
+      })
+    });
+    if (res.ok) {
+      const j = await res.json();
+      let txt = j?.choices?.[0]?.message?.content || '';
+      let s = txt.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+      const a = s.indexOf('{'), b = s.lastIndexOf('}');
+      if (a >= 0 && b > a) s = s.slice(a, b + 1);
+      const parsed = JSON.parse(s);
+      if (parsed.reply) reply = parsed;
     }
-  } catch(e) {}
+  } catch (e) {}
+}
 };
 // ==================== 重置所有数据 ====================
 window.resetAllData = () => {
@@ -1247,6 +1258,26 @@ window.sendAction = async (text) => {
       if (Array.isArray(c.inventory_add)) c.inventory_add.forEach(i => { if(!gameState.inventory.includes(i)) gameState.inventory.push(i); });
       if (c.relations) for(const [k,v] of Object.entries(c.relations)) { gameState.relations[k] = (gameState.relations[k]||0) + v; }
       if (Array.isArray(c.actors)) gameState.actors = c.actors;
+      // 处理 AI 返回的成就 / 论坛帖子
+if (Array.isArray(data.achievement_add)) {
+  data.achievement_add.forEach(a => {
+    if (!a || !a.title) return;
+    if (!gameState.achievements.find(x => x.title === a.title)) {
+      gameState.achievements.push({ title: a.title, desc: a.desc || '', t: Date.now() });
+    }
+  });
+}
+if (Array.isArray(data.forum_posts)) {
+  data.forum_posts.forEach(p => {
+    if (!p || !p.title) return;
+    gameState.forum.unshift({
+      title: p.title, body: p.body || '', author: p.author || '匿名',
+      time: p.time || '刚刚',
+      replies: Array.isArray(p.replies) ? p.replies.slice(0, 8) : []
+    });
+  });
+  if (gameState.forum.length > 5) gameState.forum = gameState.forum.slice(0, 5);
+}
       LS.set('hp_state', gameState); window.renderStatus();
     }
     window.renderOptions(data.options);
@@ -1488,32 +1519,15 @@ window.loadSave = (id) => {
   if(!s){ alert('存档不存在。'); return; }
   const d = s.data || {};
   if(d.gameState) gameState = d.gameState;
-  if (Array.isArray(c.inventory_add)) c.inventory_add.forEach(i => { if(!gameState.inventory.includes(i)) gameState.inventory.push(i); });
-  if (c.relations) for(const [k,v] of Object.entries(c.relations)) { gameState.relations[k] = (gameState.relations[k]||0) + v; }
-  if (Array.isArray(c.actors)) gameState.actors = c.actors;
-}
-// 处理 AI 返回的成就 / 论坛帖子
-if (Array.isArray(data.achievement_add)) {
-  data.achievement_add.forEach(a => {
-    if (!a || !a.title) return;
-    if (!gameState.achievements.find(x => x.title === a.title)) {
-      gameState.achievements.push({ title: a.title, desc: a.desc || '', t: Date.now() });
-    }
-  });
-}
-if (Array.isArray(data.forum_posts)) {
-  data.forum_posts.forEach(p => {
-    if (!p || !p.title) return;
-    gameState.forum.unshift({
-      title: p.title, body: p.body || '', author: p.author || '匿名',
-      time: p.time || '刚刚',
-      replies: Array.isArray(p.replies) ? p.replies.slice(0, 8) : []
-    });
-  });
-  if (gameState.forum.length > 5) gameState.forum = gameState.forum.slice(0, 5);
-}
-{
-  LS.set('hp_state', gameState); window.renderStatus();
+  if(Array.isArray(d.history)) history = d.history;
+  if(Array.isArray(d.displayHistory)) displayHistory = d.displayHistory;
+  LS.set('hp_state', gameState);
+  LS.set('hp_history', history);
+  LS.set('hp_display', displayHistory);
+  window.closeModal('modal-settings');
+  window.renderStatus();
+  window.renderStory();
+  alert('已读取：' + s.name);
 };
 
 window.exportSave = (id) => {
@@ -1922,7 +1936,6 @@ window.renderCharSidebar = () => {
         return `<div class="rel"><span>${esc(k)} / ${label}</span><span class="v ${v>=0?'pos':'neg'}">(${v>=0?'+':''}${v})</span></div>`;
       }).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有结识任何人</div>'}</div>
     </div>
-  `;
   <div class="cc-sec">
   <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>🏆 成就</h4><span class="arrow">▶</span></div>
   <div class="cc-sec-body">${(gameState.achievements || []).length ? gameState.achievements.map(a => `
@@ -1932,6 +1945,7 @@ window.renderCharSidebar = () => {
     </div>
   `).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有获得成就</div>'}</div>
 </div>
+  `;
 };
 
 window.ccConfirmCreate = () => {
