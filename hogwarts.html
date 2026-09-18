@@ -392,10 +392,7 @@ window.switchApiProfile = (id) => { activeApiProfileId = id; LS.set('hp_active_a
 window.newApiProfile = () => {
   const name = prompt('请输入新配置名称：', '新配置');
   if (!name) return;
-  const newProfile = { id: uid(), name, url: 'https://api.openai.com/v1/chat/completions', kewindow.newApiProfile = () => {
-  const name = prompt('请输入新配置名称：', '新配置');
-  if (!name) return;
-  const newProfile = { id: uid(), name, url: 'https://api.openai.com/v1/chat/completions', key: '', model: 'gpt-4o-mini', temperature: 0.9 };
+  const newProfile = { id: uid(), name, url: 'https://api.openai.com/v1/chat/completions', keconst newProfile = { id: uid(), name, url: 'https://api.openai.com/v1/chat/completions', key: '', model: 'gpt-4o-mini', temperature: 0.9 };
   apiProfiles.push(newProfile); activeApiProfileId = newProfile.id;
   LS.set('hp_api_profiles', apiProfiles); LS.set('hp_active_api_profile', activeApiProfileId);
   window.renderApiProfiles();
