@@ -126,6 +126,102 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 @keyframes bounce { 0%, 60%, 100% { opacity: 0.25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
 @media (min-width: 821px) { .only-mobile { display: none; } #sidebar { position: static; transform: none !important; } }
 @media (max-width: 480px) { .msg.assistant { padding: 12px 13px; font-size: 13px; } #story { padding: 12px; } #options { padding: 0 12px 6px; } header { padding: 4px 8px; } .header-info .h-line { font-size: 10px; } }
+/* ===== 开场迷幻文字动画 ===== */
+#intro-anim {
+  position: fixed; inset: 0; z-index: 2500;
+  background: radial-gradient(circle at 50% 40%, #1a1030 0%, #0a0612 60%, #000 100%);
+  display: none; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+#intro-anim.show { display: flex; }
+#intro-anim::before {
+  content: ''; position: absolute; inset: -20%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(120,80,200,0.14) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(200,120,80,0.10) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(60,120,180,0.10) 0%, transparent 50%);
+  animation: introDrift 22s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes introDrift {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-3%, -2%) scale(1.08); }
+}
+#intro-anim::after {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.55), transparent),
+    radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,0.35), transparent),
+    radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.30), transparent),
+    radial-gradient(1px 1px at 15% 85%, rgba(255,255,255,0.40), transparent),
+    radial-gradient(1px 1px at 55% 45%, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1px 1px at 90% 15%, rgba(255,255,255,0.35), transparent),
+    radial-gradient(1px 1px at 30% 55%, rgba(255,255,255,0.30), transparent);
+  background-size: 100% 100%;
+  animation: introTwinkle 5s ease-in-out infinite alternate;
+  pointer-events: none;
+  opacity: 0.7;
+}
+@keyframes introTwinkle {
+  0% { opacity: 0.35; } 100% { opacity: 0.85; }
+}
+#intro-text-wrap {
+  position: relative; z-index: 2;
+  max-width: 620px; padding: 0 28px;
+  text-align: center;
+}
+#intro-text {
+  font-family: 'Crimson Text', Georgia, 'PingFang SC', 'Microsoft YaHei', serif;
+  font-size: 20px; line-height: 2.1;
+  color: #e8dcff;
+  letter-spacing: 2px;
+  white-space: pre-wrap;
+  text-shadow:
+    0 0 12px rgba(180,140,255,0.5),
+    0 0 30px rgba(140,100,220,0.25);
+  min-height: 5em;
+}
+#intro-text .cursor {
+  display: inline-block; width: 10px; height: 20px;
+  background: #d4a9ff; margin-left: 2px; vertical-align: -3px;
+  animation: introBlink 0.9s steps(2) infinite;
+  box-shadow: 0 0 10px rgba(212,169,255,0.8);
+}
+@keyframes introBlink {
+  0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; }
+}
+#intro-enter {
+  margin-top: 44px;
+  font-family: 'Cinzel', 'Crimson Text', serif;
+  font-size: 14px; letter-spacing: 6px;
+  color: #c9b3ff;
+  background: transparent;
+  border: 1px solid rgba(180,140,255,0.4);
+  padding: 12px 32px;
+  border-radius: 30px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 1.2s ease, background 0.3s, color 0.3s, box-shadow 0.3s;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(180,140,255,0.6);
+}
+#intro-enter.show {
+  opacity: 1; pointer-events: auto;
+}
+#intro-enter:hover {
+  background: rgba(120,80,200,0.15);
+  color: #fff;
+  box-shadow: 0 0 24px rgba(180,140,255,0.4);
+}
+#intro-skip {
+  position: absolute; right: 20px; top: 20px; z-index: 3;
+  font-size: 11px; color: rgba(200,180,255,0.4);
+  background: transparent; border: none; cursor: pointer;
+  letter-spacing: 2px; padding: 8px;
+  font-family: 'Crimson Text', serif;
+}
+#intro-skip:hover { color: rgba(220,200,255,0.9); }
 /* ===== 侧栏人物属性 ===== */
 .cc-sidebar-photo-wrap { text-align: center; margin-bottom: 10px; }
 .cc-sidebar-photo { width: 84px; height: 84px; border-radius: 50%; border: 2px solid var(--accent-blue); object-fit: cover; background: rgba(6,9,19,.8); cursor: pointer; }
@@ -206,6 +302,13 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     </div>
   </main>
 </div>
+<div id="intro-anim">
+  <button id="intro-skip" onclick="window.skipIntroAnim()">跳过 ↦</button>
+  <div id="intro-text-wrap">
+    <div id="intro-text"></div>
+    <button id="intro-enter" onclick="window.finishIntroAnim()">睁 开 眼</button>
+  </div>
+</div>
 <div class="modal" id="modal-create">
   <div class="modal-box" style="max-width:560px;">
     <div class="modal-head"><h3 id="cc-create-title">📝 建立档案</h3></div>
@@ -221,6 +324,7 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       <button onclick="window.switchSettingsTab('tab-preset')">预设</button>
       <button onclick="window.switchSettingsTab('tab-beautify')">美化</button>
       <button onclick="window.switchSettingsTab('tab-music')">音乐</button>
+      <button onclick="window.switchSettingsTab('tab-save')">存档</button>
     </div>
     <div class="modal-body">
       <div class="tab-pane active" id="tab-api">
@@ -285,7 +389,23 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
         <hr style="border:0;border-top:1px solid var(--border-dim);margin:15px 0;">
         <div class="field"><label>导入 JSON 美化 (兼容酒馆主题)</label><input type="file" id="import-css-json" accept=".json" onchange="window.importBeautifyJSON(event)"><div style="font-size:11px;color:var(--text-faint);margin-top:4px;">上传 SillyTavern 的 JSON 主题文件，系统会自动提取 CSS 并尽量适配</div></div>
         <button class="primary" style="width:100%;padding:10px" onclick="window.saveBeautify()">保存美化设置</button>
+        <button class="danger" style="width:100%;padding:10px;margin-top:8px;" onclick="window.resetBeautify()">↺ 回到最初美化设置</button>
       </div>
+
+<!-- 存档 -->
+<div class="tab-pane" id="tab-save">
+  <div style="display:flex;gap:6px;margin-bottom:12px;">
+    <button class="primary" style="flex:1;padding:10px;" onclick="window.createSave()">+ 新建存档</button>
+    <button style="padding:10px;" onclick="document.getElementById('save-import-input').click()">导入</button>
+  </div>
+  <div style="font-size:11px;color:var(--text-dim);line-height:1.7;padding:10px;background:rgba(13,20,36,.5);border:1px dashed var(--border-dim);border-radius:6px;margin-bottom:12px;">
+    ▸ 存档保存在浏览器本地，清缓存会丢。<br>
+    ▸ 点「导出」会下载成 JSON 文件，可备份或分享。<br>
+    ▸ 读档会覆盖当前进度。
+  </div>
+  <div id="save-list"></div>
+  <input type="file" id="save-import-input" accept=".json" style="display:none;" onchange="window.importSaveFile(event)">
+</div>
 
       <!-- 音乐 -->
       <div class="tab-pane" id="tab-music">
@@ -370,7 +490,7 @@ window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
 window.openModal = (id) => { 
   if(id === 'modal-settings') {
     renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
-    renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI();
+    renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI(); renderSaveList();
   }
   $(id).classList.add('show'); 
 };
@@ -762,6 +882,222 @@ window.importBeautifyJSON = (event) => {
   reader.readAsText(file);
 };
 
+// ==================== 开场迷幻文字动画 ====================
+const INTRO_SCRIPT = [
+  { t: '孩子。', pause: 900 },
+  { t: '睁开眼睛吧。', pause: 1400 },
+  { t: '\n把手放在胸口，', pause: 900 },
+  { t: '听听那颗还在跳的心。', pause: 1600 },
+  { t: '\n\n塔罗说——', pause: 1000 },
+  { t: '你是来赴一场约的。', pause: 1500 },
+  { t: '\n命运的三张牌早已翻面：', pause: 1100 },
+  { t: '过去已成灰，', pause: 800 },
+  { t: '未来尚未至，', pause: 800 },
+  { t: '而现在——', pause: 1400 },
+  { t: '\n\n现在，是你的。', pause: 2000 },
+  { t: '\n\n选择你的时代。', pause: 1000 },
+  { t: '选择你的身份。', pause: 1000 },
+  { t: '选择你要成为的那个人。', pause: 2000 },
+  { t: '\n\n然后，睁开眼。', pause: 1500 }
+];
+
+let introAnimTimers = [];
+let introAnimRunning = false;
+
+window.playIntroAnim = () => {
+  const wrap = $('intro-anim');
+  const textEl = $('intro-text');
+  const enterBtn = $('intro-enter');
+  if(!wrap || !textEl) return;
+
+  // 清理旧状态
+  introAnimTimers.forEach(t => clearTimeout(t));
+  introAnimTimers = [];
+  textEl.textContent = '';
+  enterBtn.classList.remove('show');
+  wrap.classList.add('show');
+  introAnimRunning = true;
+
+  let accumulated = '';
+  let totalDelay = 0;
+
+  INTRO_SCRIPT.forEach((line, lineIdx) => {
+    const chars = line.t.split('');
+    chars.forEach((ch, i) => {
+      const delay = totalDelay + i * 85;
+      introAnimTimers.push(setTimeout(() => {
+        if(!introAnimRunning) return;
+        accumulated += ch;
+        textEl.innerHTML = esc(accumulated) + '<span class="cursor"></span>';
+      }, delay));
+    });
+    totalDelay += chars.length * 85 + line.pause;
+  });
+
+  // 动画结束后显示"睁开眼"按钮
+  introAnimTimers.push(setTimeout(() => {
+    if(!introAnimRunning) return;
+    enterBtn.classList.add('show');
+  }, totalDelay + 400));
+};
+
+window.skipIntroAnim = () => {
+  introAnimRunning = false;
+  introAnimTimers.forEach(t => clearTimeout(t));
+  introAnimTimers = [];
+  window.finishIntroAnim();
+};
+
+window.finishIntroAnim = () => {
+  introAnimRunning = false;
+  introAnimTimers.forEach(t => clearTimeout(t));
+  introAnimTimers = [];
+  const wrap = $('intro-anim');
+  if(wrap) {
+    wrap.style.transition = 'opacity 1.2s ease';
+    wrap.style.opacity = '0';
+    setTimeout(() => {
+      wrap.classList.remove('show');
+      wrap.style.opacity = '';
+      wrap.style.transition = '';
+      // 关闭后再弹出建档
+      if(!gameState.charCard.created){
+        window.openCreateModal();
+      }
+    }, 1200);
+  }
+};
+// ==================== 存档系统 ====================
+function getSaves(){ return LS.get('hp_saves', []); }
+function setSaves(arr){ LS.set('hp_saves', arr); }
+
+window.renderSaveList = () => {
+  const box = $('save-list');
+  if(!box) return;
+  const saves = getSaves().slice().sort((a,b)=>b.ts-a.ts);
+  if(!saves.length){
+    box.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:12px;padding:30px 10px;line-height:1.8;">还没有存档。<br>点上方「+ 新建存档」创建第一个。</div>';
+    return;
+  }
+  box.innerHTML = saves.map(s=>`
+    <div style="display:flex;gap:10px;padding:12px;background:rgba(13,20,36,.85);border:1px solid var(--border-dim);border-radius:8px;margin-bottom:8px;align-items:center;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;color:var(--accent-cyan);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name)}</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:3px;line-height:1.5;">
+          ${esc(s.subtitle || '')}<br>
+          ${new Date(s.ts).toLocaleString()}
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button class="primary" style="padding:6px 10px;font-size:11px;" onclick="window.loadSave('${s.id}')">读</button>
+        <button style="padding:6px 10px;font-size:11px;" onclick="window.exportSave('${s.id}')">导出</button>
+        <button class="danger" style="padding:6px 10px;font-size:11px;" onclick="window.deleteSave('${s.id}')">删</button>
+      </div>
+    </div>
+  `).join('');
+};
+
+window.createSave = () => {
+  const c = gameState.charCard || {};
+  const tl = (typeof TIMELINES !== 'undefined') ? (TIMELINES.find(t=>t.id===c.timeline) || {name:'未定'}) : {name:'未定'};
+  const def = `${c.name || '未命名'} · ${tl.name} · ${gameState.time || ''}`;
+  const name = prompt('存档名称：', def);
+  if(name === null) return;
+  const saves = getSaves();
+  saves.push({
+    id: 'save_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    name: name.trim() || def,
+    subtitle: `${tl.name} · ${gameState.time || ''} · ${gameState.scene || ''}`,
+    ts: Date.now(),
+    data: {
+      gameState: JSON.parse(JSON.stringify(gameState)),
+      history: JSON.parse(JSON.stringify(history)),
+      displayHistory: JSON.parse(JSON.stringify(displayHistory))
+    }
+  });
+  setSaves(saves);
+  window.renderSaveList();
+  alert('已存档。');
+};
+
+window.loadSave = (id) => {
+  if(!confirm('读取此存档？当前未保存的进度会丢失。')) return;
+  const s = getSaves().find(x=>x.id===id);
+  if(!s){ alert('存档不存在。'); return; }
+  const d = s.data || {};
+  if(d.gameState) gameState = d.gameState;
+  if(Array.isArray(d.history)) history = d.history;
+  if(Array.isArray(d.displayHistory)) displayHistory = d.displayHistory;
+  LS.set('hp_state', gameState);
+  LS.set('hp_history', history);
+  LS.set('hp_display', displayHistory);
+  window.closeModal('modal-settings');
+  window.renderStatus();
+  window.renderStory();
+  alert('已读取：' + s.name);
+};
+
+window.deleteSave = (id) => {
+  if(!confirm('删除此存档？无法恢复。')) return;
+  setSaves(getSaves().filter(x=>x.id!==id));
+  window.renderSaveList();
+};
+
+window.exportSave = (id) => {
+  const s = getSaves().find(x=>x.id===id);
+  if(!s) return;
+  const data = { type:'hogwarts-save', version:1, name:s.name, subtitle:s.subtitle, ts:s.ts, data:s.data };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'hogwarts-save-' + s.name.replace(/[\\/:*?"<>|]/g,'_') + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+window.importSaveFile = (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!data || data.type !== 'hogwarts-save' || !data.data){
+        alert('格式错误：不是霍格沃茨存档文件。');
+        return;
+      }
+      const saves = getSaves();
+      saves.push({
+        id: 'save_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+        name: (data.name || '导入存档') + ' (导入)',
+        subtitle: data.subtitle || '',
+        ts: Date.now(),
+        data: data.data
+      });
+      setSaves(saves);
+      window.renderSaveList();
+      alert('已导入存档。');
+    }catch(err){ alert('解析失败：' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+
+// ==================== 美化重置 ====================
+window.resetBeautify = () => {
+  if(!confirm('重置所有美化设置（亮度、对比度、模糊、壁纸、导入的 CSS）？')) return;
+  beautifySettings = { brightness: 100, contrast: 100, blur: 0, wallpaper: '' };
+  LS.set('hp_beautify', beautifySettings);
+  document.documentElement.style.setProperty('--app-brightness', '100%');
+  document.documentElement.style.setProperty('--app-contrast', '100%');
+  document.documentElement.style.setProperty('--app-blur', '0px');
+  document.body.style.backgroundImage = '';
+  const importedStyle = $('imported-css');
+  if(importedStyle) importedStyle.textContent = '';
+  window.renderBeautifyUI();
+  window.pushDisplay('system', '✓ 美化已重置到最初设置');
+};
 // ==================== 人物属性（侧栏） ====================
 const DEFAULT_CHARCARD = {
   name: '', en: '', house: '', hair: '', eye: '', pet: '', patronus: '',
@@ -1168,7 +1504,7 @@ window.addEventListener('DOMContentLoaded', () => {
     audio.volume = 1.0;
     if(displayHistory.length === 0) {
       if (!gameState.charCard.created) {
-        window.openCreateModal();
+        window.playIntroAnim();
       } else {
         window.pushDisplay('system', '👋 欢迎回来。在下方输入框写下你的行动。');
       }
