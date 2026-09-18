@@ -784,16 +784,19 @@ window.menuRegen = async () => {
         { role: 'system', content: buildSystemPrompt(playerText) },
         { role: 'user', content: `【重新生成】最近剧情：\n${context}\n\n玩家行动：${playerText}\n\n请给出与之前不同的描写角度或情节走向。` }
       ];
-      const res = await fetch(apiProfile.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
-        body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      const json = await res.json();
-      raw = json?.choices?.[0]?.message?.content;
-      if (!raw) throw new Error('接口返回格式异常');
-    }
+      const controller = new AbortController();
+const timeoutId = setTimeout(() => controller.abort(), 45000);
+const res = await fetch(apiProfile.url, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
+  body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature }),
+  signal: controller.signal
+});
+clearTimeout(timeoutId);
+if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+const json = await res.json();
+raw = json?.choices?.[0]?.message?.content;
+if (!raw) throw new Error('接口返回格式异常');
 
     window.hideLoading();
     let s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
@@ -1039,7 +1042,7 @@ window.importPreset = (event) => {
 };
 
 // ==================== 提示词构建与发送 ====================
-function recentContext(extra='') { return displayHistory.slice(-8).map(m => m.text).join('\n') + '\n' + (extra||''); }
+function recentContext(extra='') { return displayHistory.slice(-8).map(m => getMsgText(m)).join('\n') + '\n' + (extra||''); }
 function matchWorldbook(text) {
   const wb = worldbooks.find(w => w.id === activeWorldbookId); if (!wb) return '（未启用世界书）';
   const hits = [];
@@ -1064,9 +1067,30 @@ function buildSystemPrompt(extra='') {
   return finalPrompt.trim() || '你是一个文字冒险游戏GM。';
 }
 
-window.onSend = () => { const el = $('user-input'); const v = el.value.trim(); if(!v || busy) return; el.value = ''; el.style.height = 'auto'; window.sendAction(v); };
+window.onSend = () => {
+  const el = $('user-input');
+  const v = el.value.trim();
+  if(!v) return;
+  if(busy){
+    if(Date.now() - (window._busySince || 0) > 30000){
+      // 卡住超过 30 秒，强制解锁
+      busy = false;
+      $('send-btn').disabled = false;
+      $('user-input').disabled = false;
+      window.hideLoading();
+    } else {
+      alert('正在生成中，请稍等...\n（如果卡死超过 30 秒，再点一次发送可强制解锁）');
+      return;
+    }
+  }
+  el.value = '';
+  el.style.height = 'auto';
+  window.sendAction(v);
+};
 window.sendAction = async (text) => {
-  if(busy) return; busy = true;
+  if(busy) return;
+  busy = true;
+  window._busySince = Date.now();
   $('send-btn').disabled = true; $('user-input').disabled = true; $('options').innerHTML = '';
   window.pushDisplay('user', text); history.push({ role: 'user', content: text });
   const messages = [{ role: 'system', content: buildSystemPrompt(text) }, ...history.slice(-10)];
@@ -1109,7 +1133,7 @@ window.sendAction = async (text) => {
     window.renderOptions(data.options);
   } catch(err) {
     window.hideLoading(); window.pushDisplay('system', '⚠ ' + err.message); history.pop(); LS.set('hp_history', history);
-  } finally { busy = false; $('send-btn').disabled = false; $('user-input').disabled = false; }
+  } finally { busy = false; window._busySince = 0; $('send-btn').disabled = false; $('user-input').disabled = false; }
 };
 
 // ==================== 音乐播放器 ====================
