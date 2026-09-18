@@ -647,6 +647,29 @@ window.renderStory = () => {
   });
   requestAnimationFrame(() => box.scrollTop = box.scrollHeight);
 };
+window.showLoading = () => {
+  window.hideLoading();
+  const d = document.createElement('div');
+  d.className = 'msg assistant loading';
+  d.id = 'loading-msg';
+  d.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+  $('story').appendChild(d);
+  $('story').scrollTop = $('story').scrollHeight;
+};
+window.hideLoading = () => {
+  const e = $('loading-msg');
+  if (e) e.remove();
+};
+window.renderOptions = (opts) => {
+  const box = $('options');
+  box.innerHTML = '';
+  (opts || []).forEach(o => {
+    const b = document.createElement('button');
+    b.textContent = o;
+    b.onclick = () => { box.innerHTML = ''; window.sendAction(o); };
+    box.appendChild(b);
+  });
+};
 
 // 长按 + 滑动
 function attachMsgGestures(el, idx) {
