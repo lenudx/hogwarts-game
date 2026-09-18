@@ -329,7 +329,7 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 
 <div id="app">
   <header>
-    <div class="header-left"><button class="only-mobile" onclick="window.toggleSidebar()">☰</button></div>
+    <div class="header-left"><button class="only-mobile" onclick="window.toggleSidebar()">☰</button><button class="only-mobile" onclick="window.openModal('modal-forum')" title="学院论坛">📢</button></div>
     <div class="header-info">
       <div class="h-line"><span class="h-label">年份</span><span id="ui-header-year">2000年</span> <span style="color:#4c5e7d;">|</span> <span class="h-label">时间</span><span id="ui-header-time">上午</span></div>
       <div class="h-line"><span class="h-label">地点</span><span class="h-scene" id="ui-header-scene" style="color:var(--accent-cyan);">霍格沃茨特快列车</span></div>
@@ -373,6 +373,18 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   <div class="modal-box" style="max-width:560px;">
     <div class="modal-head"><h3 id="cc-create-title">📝 建立档案</h3></div>
     <div class="modal-body" id="cc-create-body"></div>
+  </div>
+</div>
+<div class="modal" id="modal-forum">
+  <div class="modal-box" style="max-width:600px;">
+    <div class="modal-head">
+      <h3>🏰 学院论坛</h3>
+      <div style="display:flex;gap:6px;">
+        <button class="primary" onclick="window.newForumPost()" style="padding:5px 12px;font-size:11px;">+ 发帖</button>
+        <button onclick="window.closeModal('modal-forum')">关闭</button>
+      </div>
+    </div>
+    <div class="modal-body" id="forum-body"></div>
   </div>
 </div>
 <div class="modal" id="modal-settings">
@@ -544,6 +556,10 @@ if (!Array.isArray(apiProfiles) || apiProfiles.length === 0) apiProfiles = DEFAU
 if (!Array.isArray(worldbooks) || worldbooks.length === 0) worldbooks = DEFAULT_WORLDBOOKS;
 if (!Array.isArray(presets) || presets.length === 0) presets = DEFAULT_PRESETS;
 if (!presets[0].prompts) presets = DEFAULT_PRESETS; // 兼容旧存档：把 text 转成 versions 数组
+if (!Array.isArray(gameState.achievements)) gameState.achievements = [];
+if (!Array.isArray(gameState.forum)) gameState.forum = [];
+if (!gameState.shops) gameState.shops = { knockturn: [], tavern: [] };
+if (!gameState.houseCup) gameState.houseCup = { gryffindor: 0, slytherin: 0, ravenclaw: 0, hufflepuff: 0, ourHouse: '', champion: '', buffs: [], reputation: { good: 0, evil: 0 } };
 if (Array.isArray(displayHistory)) {
   displayHistory.forEach(m => {
     if (m && m.text !== undefined && !m.versions) {
@@ -560,6 +576,9 @@ window.openModal = (id) => {
   if(id === 'modal-settings') {
     renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
     renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI(); renderSaveList();
+  }
+  if(id === 'modal-forum') {
+    renderForum();
   }
   $(id).classList.add('show'); 
 };
@@ -884,6 +903,54 @@ window.swipeMsg = (idx, dir) => {
   window.renderStory();
 };
 
+// ==================== 学院论坛 ====================
+window.renderForum = () => {
+  const box = $('forum-body');
+  if (!box) return;
+  const posts = gameState.forum || [];
+  if (!posts.length) {
+    box.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:12px;padding:30px 10px;">论坛还没有帖子。<br>点右上角「+ 发帖」，或者等 AI 更新。</div>';
+    return;
+  }
+  box.innerHTML = posts.map((p, i) => `
+    <div class="card" style="margin-bottom:10px">
+      <div style="font-size:12px;color:var(--accent-cyan);font-weight:600;">${esc(p.title)}</div>
+      <div style="font-size:10px;color:var(--text-dim);margin:4px 0;">${esc(p.author)} · ${esc(p.time)}</div>
+      <div style="font-size:12px;line-height:1.6;margin-bottom:8px;">${esc(p.body)}</div>
+      ${(p.replies||[]).map(r => `<div class="reply"><div class="rn">${esc(r.author)}</div><div class="rc">${esc(r.text)}</div></div>`).join('')}
+    </div>
+  `).join('');
+};
+
+window.newForumPost = async () => {
+  const title = prompt('帖子标题：');
+  if (!title) return;
+  const body = prompt('帖子内容：');
+  if (!body) return;
+  gameState.forum.unshift({
+    title, body, author: gameState.name || '你', time: '刚刚', replies: []
+  });
+  if (gameState.forum.length > 5) gameState.forum = gameState.forum.slice(0, 5);
+  LS.set('hp_state', gameState);
+  window.renderForum();
+
+  // 让 AI 生成跟帖
+  try {
+    const reply = await callAI(
+      `【学院论坛场景】玩家在霍格沃茨学院论坛发了一个新帖，标题《${title}》，内容：「${body}」。请生成 6-8 条其他学生（或匿名）的跟帖，用 JSON 的 reply 字段返回，每条一行，格式："网名：内容"。语气要像真实的霍格沃茨学生，围绕学院、课程、魁地奇、八卦等话题。`
+    );
+    if (reply.reply) {
+      reply.reply.split('\n').filter(Boolean).forEach(line => {
+        const idx = line.indexOf('：') >= 0 ? line.indexOf('：') : line.indexOf(':');
+        if (idx > 0) gameState.forum[0].replies.push({ author: line.slice(0,idx).trim(), text: line.slice(idx+1).trim() });
+        else gameState.forum[0].replies.push({ author: '匿名', text: line.trim() });
+      });
+      if (gameState.forum[0].replies.length > 8) gameState.forum[0].replies = gameState.forum[0].replies.slice(0, 8);
+      LS.set('hp_state', gameState);
+      window.renderForum();
+    }
+  } catch(e) {}
+};
 // ==================== 重置所有数据 ====================
 window.resetAllData = () => {
   if(!confirm('⚠️ 确定要清空所有本地缓存吗？这将重置 API、世界书、预设和游戏进度！')) return;
@@ -1421,21 +1488,32 @@ window.loadSave = (id) => {
   if(!s){ alert('存档不存在。'); return; }
   const d = s.data || {};
   if(d.gameState) gameState = d.gameState;
-  if(Array.isArray(d.history)) history = d.history;
-  if(Array.isArray(d.displayHistory)) displayHistory = d.displayHistory;
-  LS.set('hp_state', gameState);
-  LS.set('hp_history', history);
-  LS.set('hp_display', displayHistory);
-  window.closeModal('modal-settings');
-  window.renderStatus();
-  window.renderStory();
-  alert('已读取：' + s.name);
-};
-
-window.deleteSave = (id) => {
-  if(!confirm('删除此存档？无法恢复。')) return;
-  setSaves(getSaves().filter(x=>x.id!==id));
-  window.renderSaveList();
+  if (Array.isArray(c.inventory_add)) c.inventory_add.forEach(i => { if(!gameState.inventory.includes(i)) gameState.inventory.push(i); });
+  if (c.relations) for(const [k,v] of Object.entries(c.relations)) { gameState.relations[k] = (gameState.relations[k]||0) + v; }
+  if (Array.isArray(c.actors)) gameState.actors = c.actors;
+}
+// 处理 AI 返回的成就 / 论坛帖子
+if (Array.isArray(data.achievement_add)) {
+  data.achievement_add.forEach(a => {
+    if (!a || !a.title) return;
+    if (!gameState.achievements.find(x => x.title === a.title)) {
+      gameState.achievements.push({ title: a.title, desc: a.desc || '', t: Date.now() });
+    }
+  });
+}
+if (Array.isArray(data.forum_posts)) {
+  data.forum_posts.forEach(p => {
+    if (!p || !p.title) return;
+    gameState.forum.unshift({
+      title: p.title, body: p.body || '', author: p.author || '匿名',
+      time: p.time || '刚刚',
+      replies: Array.isArray(p.replies) ? p.replies.slice(0, 8) : []
+    });
+  });
+  if (gameState.forum.length > 5) gameState.forum = gameState.forum.slice(0, 5);
+}
+{
+  LS.set('hp_state', gameState); window.renderStatus();
 };
 
 window.exportSave = (id) => {
@@ -1845,6 +1923,15 @@ window.renderCharSidebar = () => {
       }).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有结识任何人</div>'}</div>
     </div>
   `;
+  <div class="cc-sec">
+  <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>🏆 成就</h4><span class="arrow">▶</span></div>
+  <div class="cc-sec-body">${(gameState.achievements || []).length ? gameState.achievements.map(a => `
+    <div class="cc-row" style="flex-direction:column;align-items:stretch;">
+      <div style="font-size:12px;color:var(--accent-cyan);font-weight:600;">${esc(a.title)}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${esc(a.desc || '')}</div>
+    </div>
+  `).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有获得成就</div>'}</div>
+</div>
 };
 
 window.ccConfirmCreate = () => {
