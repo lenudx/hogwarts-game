@@ -126,6 +126,47 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 @keyframes bounce { 0%, 60%, 100% { opacity: 0.25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
 @media (min-width: 821px) { .only-mobile { display: none; } #sidebar { position: static; transform: none !important; } }
 @media (max-width: 480px) { .msg.assistant { padding: 12px 13px; font-size: 13px; } #story { padding: 12px; } #options { padding: 0 12px 6px; } header { padding: 4px 8px; } .header-info .h-line { font-size: 10px; } }
+/* ===== 人物卡 ===== */
+.cc-photo-wrap { text-align: center; margin-bottom: 12px; }
+.cc-photo { width: 96px; height: 96px; border-radius: 50%; border: 2px solid var(--accent-blue); object-fit: cover; background: rgba(6,9,19,.8); cursor: pointer; }
+.cc-photo-empty { width: 96px; height: 96px; border-radius: 50%; border: 2px dashed var(--border-glow); display: inline-flex; align-items: center; justify-content: center; font-size: 28px; color: var(--text-faint); cursor: pointer; background: rgba(6,9,19,.8); }
+.cc-name-line { text-align: center; margin-bottom: 6px; }
+.cc-name-line .nm { font-size: 18px; color: var(--accent-cyan); font-family: 'Cinzel', serif; font-weight: 600; }
+.cc-name-line .en { font-size: 12px; color: var(--text-dim); font-style: italic; margin-top: 2px; }
+.cc-name-line .sub { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+.cc-sec { border: 1px solid var(--border-dim); border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+.cc-sec-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: rgba(13,20,36,.85); cursor: pointer; user-select: none; }
+.cc-sec-head h4 { font-family: 'Cinzel', serif; font-size: 11px; color: var(--accent-blue); letter-spacing: 1.5px; font-weight: 600; }
+.cc-sec-head .arrow { color: var(--text-dim); transition: transform .2s; font-size: 11px; }
+.cc-sec.open .cc-sec-head .arrow { transform: rotate(90deg); }
+.cc-sec-body { display: none; padding: 10px 12px; background: rgba(6,9,19,.6); border-top: 1px solid var(--border-dim); }
+.cc-sec.open .cc-sec-body { display: block; }
+.cc-row { display: flex; padding: 6px 0; border-bottom: 1px dashed rgba(30,42,69,.5); font-size: 12px; gap: 8px; }
+.cc-row:last-child { border-bottom: none; }
+.cc-row .cc-k { color: var(--text-dim); flex-shrink: 0; min-width: 76px; }
+.cc-row .cc-v { color: var(--text-main); flex: 1; word-break: break-word; white-space: pre-wrap; }
+.cc-row .cc-v.empty { color: var(--text-faint); font-style: italic; }
+.cc-edit-input, .cc-edit-textarea { width: 100%; padding: 6px 8px; background: rgba(6,9,19,.9); border: 1px solid var(--border-dim); border-radius: 4px; color: var(--text-main); font-size: 12px; font-family: inherit; }
+.cc-edit-textarea { resize: vertical; min-height: 50px; }
+.cc-nick-item { display: flex; gap: 6px; margin-bottom: 6px; }
+.cc-nick-item input { flex: 1; }
+.cc-nick-item button { padding: 4px 8px; font-size: 11px; }
+.cc-grade-badge { display: inline-block; padding: 2px 10px; background: rgba(92,156,255,.15); border: 1px solid var(--border-glow); border-radius: 12px; font-size: 11px; color: var(--accent-cyan); margin-left: 6px; }
+.cc-toolbar { display: flex; gap: 6px; margin-bottom: 12px; }
+.cc-toolbar button { flex: 1; padding: 8px; font-size: 12px; }
+.cc-subject-block { margin-top: 8px; padding: 8px; background: rgba(13,20,36,.5); border-radius: 6px; }
+.cc-subject-block .sb-title { font-size: 11px; color: var(--accent-cyan); margin-bottom: 6px; font-weight: 600; }
+.cc-subject-line { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; gap: 8px; }
+.cc-subject-line .grade-input { width: 70px; padding: 3px 6px; font-size: 11px; }
+.cc-grade-chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin: 2px 4px 2px 0; background: rgba(30,42,69,.6); border: 1px solid var(--border-dim); }
+.cc-grade-chip.O { color: #4ade80; border-color: rgba(74,222,128,.4); }
+.cc-grade-chip.E { color: #60a5fa; border-color: rgba(96,165,250,.4); }
+.cc-grade-chip.A { color: #a78bfa; border-color: rgba(167,139,250,.4); }
+.cc-grade-chip.P { color: #fbbf24; border-color: rgba(251,191,36,.4); }
+.cc-grade-chip.D { color: #f87171; border-color: rgba(248,113,113,.4); }
+.cc-grade-chip.T { color: #888; }
+.cc-timeline { font-size: 11px; color: var(--text-dim); text-align: center; padding: 8px; background: rgba(13,20,36,.5); border-radius: 6px; margin-bottom: 12px; line-height: 1.6; }
+.cc-timeline .cur { color: var(--accent-cyan); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -147,6 +188,9 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       <div class="card"><h4>当前</h4><div class="kv"><span class="k">场景</span><span class="v" id="ui-scene">-</span></div><div class="kv"><span class="k">时间</span><span class="v" id="ui-time">-</span></div></div>
       <div class="card"><h4>状态</h4><div class="bar-row"><div class="bar-label"><span>魔力</span><span id="ui-mana-t">0/100</span></div><div class="bar mana"><i id="ui-mana-b" style="width:0%"></i></div></div><div class="bar-row"><div class="bar-label"><span>体力</span><span id="ui-stam-t">0/100</span></div><div class="bar stam"><i id="ui-stam-b" style="width:0%"></i></div></div><div class="kv"><span class="k">加隆</span><span class="v" id="ui-galleons">💰 0</span></div></div>
       <div class="card"><h4>物品</h4><div id="ui-inventory"></div></div>
+      <div class="card">
+  <button class="primary" style="width: 100%; padding: 10px;" onclick="window.openCharCard()">📋 打开人物卡</button>
+</div>
       <div class="card"><h4>人物关系</h4><div id="ui-relations"></div></div>
     </aside>
 
@@ -161,6 +205,20 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   </main>
 </div>
 
+<div class="modal" id="modal-charcard">
+  <div class="modal-box" style="max-width: 540px;">
+    <div class="modal-head">
+      <h3>📋 人物卡</h3>
+      <div style="display: flex; gap: 6px;">
+        <button id="cc-edit-btn" onclick="window.ccToggleEdit()" class="primary" style="padding: 5px 12px;">✎ 编辑</button>
+        <button onclick="window.closeModal('modal-charcard')">关闭</button>
+      </div>
+    </div>
+    <div class="modal-body" id="charcard-body"></div>
+  </div>
+</div>
+
+<input type="file" id="cc-photo-input" accept="image/*" style="display: none;" onchange="window.ccUploadPhoto(event)">
 <div class="modal" id="modal-settings">
   <div class="modal-box">
     <div class="modal-head"><h3>⚙ 系统设置</h3><button onclick="window.closeModal('modal-settings')">关闭</button></div>
