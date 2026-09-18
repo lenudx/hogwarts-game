@@ -604,11 +604,16 @@ function ensureVersions(m) {
 }
 
 window.pushDisplay = (role, text) => {
+  window.pushDisplay = (role, text) => {
   const entry = { role, versions: [text], activeVersion: 0, t: Date.now() };
   displayHistory.push(entry);
   if (displayHistory.length > 200) displayHistory = displayHistory.slice(-200);
   const el = makeMsgEl(role, text);
-  el.dataset.idx = displayHistory.length - 1;
+  const idx = displayHistory.length - 1;
+  el.dataset.idx = idx;
+  if (role === 'assistant') {
+    attachMsgGestures(el, idx);
+  }
   $('story').appendChild(el);
   $('story').scrollTop = $('story').scrollHeight;
   LS.set('hp_display', displayHistory);
