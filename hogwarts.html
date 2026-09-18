@@ -329,21 +329,19 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 
 <div id="app">
   <header>
-    <div class="header-left">
-  <button class="only-mobile" onclick="window.toggleSidebar()">☰</button>
-  <button class="only-mobile" onclick="window.openModal('modal-forum')" title="学院论坛">📢</button>
-  <button class="only-mobile" onclick="window.openModal('modal-shop')" title="交易">🛒</button>
-  <button class="only-mobile" onclick="window.openModal('modal-reputation')" title="学院风评">🏆</button>
-</div>
+  <div class="header-left">
+    <button class="only-mobile" onclick="window.toggleSidebar()">☰</button>
+    <button class="only-mobile" onclick="window.openModal('modal-forum')" title="学院论坛">📢</button>
     <button class="only-mobile" onclick="window.openModal('modal-shop')" title="交易">🛒</button>
-<button class="only-mobile" onclick="window.openModal('modal-reputation')" title="学院风评">🏆</button>
-    <div class="header-info">
-      <div class="h-line"><span class="h-label">年份</span><span id="ui-header-year">2000年</span> <span style="color:#4c5e7d;">|</span> <span class="h-label">时间</span><span id="ui-header-time">上午</span></div>
-      <div class="h-line"><span class="h-label">地点</span><span class="h-scene" id="ui-header-scene" style="color:var(--accent-cyan);">霍格沃茨特快列车</span></div>
-      <div class="h-line"><span class="h-label">在场</span><span class="h-actors" id="ui-header-actors">你</span></div>
-    </div>
-    <div class="header-right"><button onclick="window.openModal('modal-settings')">⚙</button></div>
-  </header>
+    <button class="only-mobile" onclick="window.openModal('modal-reputation')" title="学院风评">🏆</button>
+  </div>
+  <div class="header-info">
+    <div class="h-line"><span class="h-label">年份</span><span id="ui-header-year">2000年</span> <span style="color:#4c5e7d;">|</span> <span class="h-label">时间</span><span id="ui-header-time">上午</span></div>
+    <div class="h-line"><span class="h-label">地点</span><span class="h-scene" id="ui-header-scene" style="color:var(--accent-cyan);">霍格沃茨特快列车</span></div>
+    <div class="h-line"><span class="h-label">在场</span><span class="h-actors" id="ui-header-actors">你</span></div>
+  </div>
+  <div class="header-right"><button onclick="window.openModal('modal-settings')">⚙</button></div>
+</header>
 
   <main>
     <aside id="sidebar" class="hidden">
