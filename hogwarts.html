@@ -329,7 +329,14 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 
 <div id="app">
   <header>
-    <div class="header-left"><button class="only-mobile" onclick="window.toggleSidebar()">☰</button><button class="only-mobile" onclick="window.openModal('modal-forum')" title="学院论坛">📢</button></div>
+    <div class="header-left">
+  <button class="only-mobile" onclick="window.toggleSidebar()">☰</button>
+  <button class="only-mobile" onclick="window.openModal('modal-forum')" title="学院论坛">📢</button>
+  <button class="only-mobile" onclick="window.openModal('modal-shop')" title="交易">🛒</button>
+  <button class="only-mobile" onclick="window.openModal('modal-reputation')" title="学院风评">🏆</button>
+</div>
+    <button class="only-mobile" onclick="window.openModal('modal-shop')" title="交易">🛒</button>
+<button class="only-mobile" onclick="window.openModal('modal-reputation')" title="学院风评">🏆</button>
     <div class="header-info">
       <div class="h-line"><span class="h-label">年份</span><span id="ui-header-year">2000年</span> <span style="color:#4c5e7d;">|</span> <span class="h-label">时间</span><span id="ui-header-time">上午</span></div>
       <div class="h-line"><span class="h-label">地点</span><span class="h-scene" id="ui-header-scene" style="color:var(--accent-cyan);">霍格沃茨特快列车</span></div>
@@ -385,6 +392,29 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       </div>
     </div>
     <div class="modal-body" id="forum-body"></div>
+  </div>
+</div>
+
+<div class="modal" id="modal-shop">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head">
+      <h3>🛒 巫师交易</h3>
+      <div style="display:flex;gap:6px;">
+        <button class="primary" onclick="window.refreshShop()" style="padding:5px 12px;font-size:11px;">刷新商品</button>
+        <button onclick="window.closeModal('modal-shop')">关闭</button>
+      </div>
+    </div>
+    <div class="modal-body" id="shop-body"></div>
+  </div>
+</div>
+
+<div class="modal" id="modal-reputation">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head">
+      <h3>🏆 学院风评</h3>
+      <button onclick="window.closeModal('modal-reputation')">关闭</button>
+    </div>
+    <div class="modal-body" id="reputation-body"></div>
   </div>
 </div>
 <div class="modal" id="modal-settings">
@@ -573,6 +603,8 @@ if (Array.isArray(displayHistory)) {
 // ==================== 界面渲染 ====================
 window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
 window.openModal = (id) => { 
+if(id === 'modal-shop') { renderShop(); }
+if(id === 'modal-reputation') { renderReputation(); }
   if(id === 'modal-settings') {
     renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
     renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI(); renderSaveList();
@@ -975,8 +1007,154 @@ window.newForumPost = async () => {
     }
   } catch(e) {}
 };
+// ==================== 交易模块 ====================
+window.renderShop = () => {
+  const box = $('shop-body');
+  if (!box) return;
+
+  if (!gameState.shops.knockturn || gameState.shops.knockturn.length === 0) {
+    const knockItems = ['毒角兽角粉','黑魔法防御书','致幻蘑菇','被诅咒的项链','龙血','蛇牙'];
+    gameState.shops.knockturn = [
+      { id: uid(), name: knockItems[Math.floor(Math.random()*knockItems.length)], desc: '散发着危险的气息', price: Math.floor(Math.random()*50)+10, effect: { evil: Math.floor(Math.random()*10)+5 } },
+      { id: uid(), name: knockItems[Math.floor(Math.random()*knockItems.length)], desc: '翻倒巷的紧俏货', price: Math.floor(Math.random()*80)+20, effect: { evil: Math.floor(Math.random()*15)+10 } },
+      { id: uid(), name: knockItems[Math.floor(Math.random()*knockItems.length)], desc: '卖家不愿透露来源', price: Math.floor(Math.random()*100)+30, effect: { evil: Math.floor(Math.random()*20)+15 } }
+    ];
+  }
+  if (!gameState.shops.tavern || gameState.shops.tavern.length === 0) {
+    const tavernItems = ['黄油啤酒','比比多味豆','巧克力蛙','滋滋蜜蜂糖','糖丝羽毛笔','会唱歌的贺卡'];
+    gameState.shops.tavern = [
+      { id: uid(), name: tavernItems[Math.floor(Math.random()*tavernItems.length)], desc: '甜度超标，学生最爱', price: Math.floor(Math.random()*5)+2, effect: { relations: { '同学': 5 } } },
+      { id: uid(), name: tavernItems[Math.floor(Math.random()*tavernItems.length)], desc: '霍格沃茨特供', price: Math.floor(Math.random()*8)+3, effect: { relations: { '同学': 10 } } },
+      { id: uid(), name: tavernItems[Math.floor(Math.random()*tavernItems.length)], desc: '送人自留都合适', price: Math.floor(Math.random()*10)+5, effect: { relations: { '朋友': 15 } } }
+    ];
+  }
+  LS.set('hp_state', gameState);
+
+  const renderList = (items, title, tag) => `
+    <div style="font-family:'Cinzel',serif;font-size:12px;color:var(--accent-cyan);margin:12px 0 6px;">${title}</div>
+    ${items.map((it, idx) => `
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-size:13px;color:var(--text-main);font-weight:600;">${esc(it.name)} <span class="tag">${tag}</span></div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${esc(it.desc)}</div>
+          <div style="font-size:11px;color:var(--accent-blue);margin-top:4px;">💰 ${it.price} 加隆 ${it.effect.evil ? `| 恶名 +${it.effect.evil}` : ''} ${it.effect.relations ? `| 好感 +` : ''}</div>
+        </div>
+        <button class="primary" style="padding:6px 12px;font-size:11px;flex-shrink:0;" onclick="window.buyItem('${tag}','${it.id}')">购买</button>
+      </div>
+    `).join('')}
+  `;
+
+  box.innerHTML = renderList(gameState.shops.knockturn, '🕯️ 翻倒巷（危险物品）', '翻倒巷') + renderList(gameState.shops.tavern, '🍺 酒馆（日常甜品）', '酒馆');
+};
+
+window.buyItem = (type, id) => {
+  const list = type === '翻倒巷' ? gameState.shops.knockturn : gameState.shops.tavern;
+  const item = list.find(x => x.id === id);
+  if (!item) return;
+  if (gameState.stats.galleons < item.price) return alert('加隆不够！');
+  
+  gameState.stats.galleons -= item.price;
+  if (item.effect.evil) gameState.houseCup.reputation.evil += item.effect.evil;
+  if (item.effect.relations) for(const [k,v] of Object.entries(item.effect.relations)) gameState.relations[k] = (gameState.relations[k]||0) + v;
+  
+  gameState.inventory.push(item.name);
+  gameState.shops[type === '翻倒巷' ? 'knockturn' : 'tavern'] = list.filter(x => x.id !== id);
+  
+  LS.set('hp_state', gameState);
+  window.renderShop();
+  window.renderStatus();
+  window.pushDisplay('system', `✅ 购买了 ${item.name}，花费 ${item.price} 加隆`);
+};
+
+window.refreshShop = () => {
+  gameState.shops.knockturn = [];
+  gameState.shops.tavern = [];
+  window.renderShop();
+  window.pushDisplay('system', '🔄 商品已刷新');
+};
+
+// ==================== 风评模块 ====================
+window.renderReputation = () => {
+  const box = $('reputation-body');
+  if (!box) return;
+  const rep = gameState.houseCup.reputation;
+  const total = rep.good + rep.evil || 1;
+
+  const houseScores = Object.entries(gameState.houseCup).filter(([k]) => ['gryffindor','slytherin','ravenclaw','hufflepuff'].includes(k));
+  const houseNames = { gryffindor: '格兰芬多', slytherin: '斯莱特林', ravenclaw: '拉文克劳', hufflepuff: '赫奇帕奇' };
+
+  box.innerHTML = `
+    <div class="cc-sec open">
+      <div class="cc-sec-head"><h4>⚖️ 美名 / 恶名</h4></div>
+      <div class="cc-sec-body">
+        <div class="bar-row"><div class="bar-label"><span>美名</span><span>${rep.good}</span></div><div class="bar" style="background:rgba(74,157,122,0.2);"><i style="width:${(rep.good/total*100)}%;background:#4a9d7a;"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>恶名</span><span>${rep.evil}</span></div><div class="bar" style="background:rgba(181,84,74,0.2);"><i style="width:${(rep.evil/total*100)}%;background:#b5544a;"></i></div></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">做好事加美名，做坏事加恶名。部分NPC会根据风评改变态度。</div>
+      </div>
+    </div>
+
+    <div class="cc-sec open">
+      <div class="cc-sec-head"><h4>🏆 学院杯分数</h4></div>
+      <div class="cc-sec-body">
+        ${houseScores.map(([k,v]) => `
+          <div class="bar-row"><div class="bar-label"><span>${houseNames[k]} ${gameState.houseCup.ourHouse === houseNames[k] ? '（你的学院）' : ''}</span><span>${v} 分</span></div><div class="bar" style="background:rgba(92,156,255,0.2);"><i style="width:${Math.min(v,100)}%;background:#5c9cff;"></i></div></div>
+        `).join('')}
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">加分：课堂表现、魁地奇、帮助他人。减分：违纪、夜游、打架。</div>
+      </div>
+    </div>
+
+    <div class="cc-sec open">
+      <div class="cc-sec-head"><h4>🏅 历届冠军 & Buff</h4></div>
+      <div class="cc-sec-body">
+        <div class="cc-row"><div class="cc-k">当前冠军</div><div class="cc-v">${gameState.houseCup.champion || '暂无（学年末结算）'}</div></div>
+        <div class="cc-row"><div class="cc-k">你的学院</div><div class="cc-v">${gameState.houseCup.ourHouse || '未定'}</div></div>
+        <div class="cc-row" style="flex-direction:column;align-items:stretch;">
+          <div class="cc-k" style="margin-bottom:4px;">当前 Buff</div>
+          <div class="cc-v">${gameState.houseCup.buffs.length ? gameState.houseCup.buffs.map(b => `<span class="tag">${esc(b)}</span>`).join('') : '无'}</div>
+        </div>
+        <button class="primary" style="width:100%;margin-top:8px;padding:8px;font-size:12px;" onclick="window.processYearEnd()">📅 模拟学年末结算</button>
+      </div>
+    </div>
+
+    <div class="cc-sec open">
+      <div class="cc-sec-head"><h4>👀 其他学院的看法</h4></div>
+      <div class="cc-sec-body">
+        ${houseScores.filter(([k]) => houseNames[k] !== gameState.houseCup.ourHouse).map(([k,v]) => {
+          let attitude = '中立';
+          if (v > 60) attitude = '敬畏（你们学院很强）';
+          if (v < 30) attitude = '轻视（你们学院很弱）';
+          return `<div class="cc-row"><div class="cc-k">${houseNames[k]}</div><div class="cc-v">${attitude}</div></div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+};
+
+window.processYearEnd = () => {
+  const scores = Object.entries(gameState.houseCup).filter(([k]) => ['gryffindor','slytherin','ravenclaw','hufflepuff'].includes(k));
+  const sorted = scores.sort((a,b) => b[1] - a[1]);
+  const champion = sorted[0][0];
+  const houseNames = { gryffindor: '格兰芬多', slytherin: '斯莱特林', ravenclaw: '拉文克劳', hufflepuff: '赫奇帕奇' };
+  gameState.houseCup.champion = houseNames[champion];
+  
+  if (champion === gameState.houseCup.ourHouse) {
+    gameState.houseCup.buffs.push('消费打折', '风评增加');
+    gameState.houseCup.reputation.good += 20;
+  } else {
+    gameState.houseCup.reputation.good -= 10;
+  }
+  
+  for (const [k] of scores) {
+    if (k !== champion) gameState.houseCup[k] = 0;
+  }
+  gameState.houseCup[champion] = 100;
+  
+  LS.set('hp_state', gameState);
+  window.renderReputation();
+  window.pushDisplay('system', `🏆 学年末结算：${houseNames[champion]} 获得学院杯！`);
+};
 window.resetAllData = () => {
-  if(!confirm('⚠️ 确定要清空所有本地缓存吗？这将重置 API、世界书、预设和游戏进度！')) return;
+  if(!confirm('⚠️ 确定要清空所有本地缓存吗？这将所有/ API、世界书、预设和游戏进度！')) return;
   localStorage.clear();
   location.reload();
 };
