@@ -603,6 +603,16 @@ function ensureVersions(m) {
   if (typeof m.activeVersion !== 'number') m.activeVersion = 0;
 }
 
+window.pushDisplay = (role, text) => {
+  const entry = { role, versions: [text], activeVersion: 0, t: Date.now() };
+  displayHistory.push(entry);
+  if (displayHistory.length > 200) displayHistory = displayHistory.slice(-200);
+  const el = makeMsgEl(role, text);
+  el.dataset.idx = displayHistory.length - 1;
+  $('story').appendChild(el);
+  $('story').scrollTop = $('story').scrollHeight;
+  LS.set('hp_display', displayHistory);
+};
 window.renderStory = () => {
   const box = $('story');
   box.innerHTML = '';
