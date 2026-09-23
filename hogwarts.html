@@ -387,6 +387,7 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       <h3>🏰 学院论坛</h3>
       <div style="display:flex;gap:6px;">
         <button class="primary" onclick="window.newForumPost()" style="padding:5px 12px;font-size:11px;">+ 发帖</button>
+        <button class="primary" onclick="window.refreshForumWithAI()" style="padding:5px 12px;font-size:11px;margin-left:6px;">🔄 刷新论坛</button>
         <button onclick="window.closeModal('modal-forum')">关闭</button>
       </div>
     </div>
@@ -1055,6 +1056,77 @@ window.newForumPost = async () => {
     }
   } catch(e) {}
 };
+// ==================== 论坛自动生成逻辑 ====================
+window.refreshForumWithAI = async () => {
+  const btn = event && event.target ? event.target : null;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 生成中...'; }
+  
+  // 1. 准备上下文（当前场景、在场人物、最近剧情）
+  const actors = (gameState.actors || ['你']).join('、');
+  const scene = gameState.scene || '霍格沃茨';
+  const recentPlot = (displayHistory || []).slice(-5).map(m => {
+    const txt = m.versions ? m.versions[m.activeVersion || 0] : (m.text || '');
+    return (m.role === 'user' ? '玩家：' : '') + txt;
+  }).join('\n');
+  
+  const prompt = `【学院论坛场景】当前地点：${scene}，在场人物：${actors}。最近剧情：\n${recentPlot}\n\n请根据以上情境，生成 5 个霍格沃茨学院论坛的帖子。要求：\n1. 必须返回严格的 JSON 数组格式，不要带任何 Markdown 代码块。\n2. 每条帖子包含字段：title（标题）、author（发帖人，尽量用当前在场人物）、body（楼主正文，100字左右）、replies（跟帖数组，包含 7-8 条，每条有 author 和 text）。\n3. 语气要像真实的霍格沃茨学生，围绕学院、课程、魁地奇、八卦、当前剧情等话题。`;
+
+  let newPosts = [];
+
+  // 2. 尝试调用 API
+  const apiProfile = apiProfiles.find(p => p.id === activeApiProfileId);
+  if (apiProfile && apiProfile.key) {
+    try {
+      const res = await fetch(apiProfile.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
+        body: JSON.stringify({
+          model: apiProfile.model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.9
+        })
+      });
+      if (res.ok) {
+        const j = await res.json();
+        let txt = j?.choices?.[0]?.message?.content || '';
+        let s = txt.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const a = s.indexOf('['), b = s.lastIndexOf(']');
+        if (a >= 0 && b > a) {
+          newPosts = JSON.parse(s.slice(a, b + 1));
+        }
+      }
+    } catch (e) { console.error('AI论坛生成失败', e); }
+  }
+
+  // 3. 如果没有 API 或 AI 生成失败，就用模拟数据兜底
+  if (!newPosts || !Array.isArray(newPosts) || newPosts.length === 0) {
+    newPosts = [
+      { title: `关于${scene}的奇遇`, author: actors.split('、')[0] || '匿名', body: `今天在${scene}经历了一些不可思议的事情，感觉霍格沃茨真的每天都有新惊喜。你们有没有遇到过类似的情况？评论区聊聊！`, replies: [
+        { author: '吃瓜同学A', text: '楼主详细说说！' }, { author: '吃瓜同学B', text: '+1，我也想知道' }, { author: '吃瓜同学C', text: '听上去好危险' }, { author: '吃瓜同学D', text: '这学期怪事真多' }, { author: '吃瓜同学E', text: '蹲后续' }, { author: '吃瓜同学F', text: '别是又在禁林迷路了吧' }, { author: '吃瓜同学G', text: '注意安全啊' }
+      ]},
+      { title: '求推荐好吃的糖果', author: '蜂蜜公爵常客', body: '最近去霍格莫德买了好多比比多味豆，结果吃到了耳屎味和呕吐味，心态崩了。大家有什么好吃的糖果推荐吗？', replies: [
+        { author: '甜食控', text: '巧克力蛙永远不会踩雷' }, { author: '路人甲', text: '滋滋蜜蜂糖好吃' }, { author: '魁地奇迷', text: '推荐胡椒小顽童' }, { author: '匿名', text: '多味豆就是开盲盒哈哈' }, { author: '赫奇帕奇学生', text: '去蜂蜜公爵买糖丝羽毛笔' }, { author: '高年级学长', text: '小心牙齿长蛀虫' }, { author: '新生', text: '学到了' }
+      ]},
+      { title: '魁地奇训练好难', author: '替补击球手', body: '这周魁地奇训练伍德学长太严厉了，要求我们在雨中飞了整整三个小时。大家觉得今年我们能拿冠军吗？', replies: [
+        { author: '格兰芬多粉丝', text: '今年必须拿冠军！' }, { author: '斯莱特林路人', text: '想得美' }, { author: '找球手', text: '多练练总没坏处' }, { author: '观众', text: '加油加油' }, { author: '队长', text: '严师出高徒' }, { author: '新生', text: '学长们辛苦了' }, { author: '匿名', text: '别练太晚被费尔奇抓了' }
+      ]},
+      { title: '图书馆占座问题', author: '泡图书馆的学霸', body: '平斯夫人今天又发飙了，因为有人把书乱放。大家能不能自觉一点，给真正想学习的人留个位置？', replies: [
+        { author: '拉文克劳学生', text: '支持，我今天找书找了半小时' }, { author: '备考党', text: 'O.W.L.考试快到了，大家互相体谅' }, { author: '路人', text: '有些人就是素质差' }, { author: '匿名', text: '平斯夫人脾气真大' }, { author: '低年级', text: '我都不敢去图书馆了' }, { author: '级长', text: '我会向上面反映的' }, { author: '吃瓜', text: '好可怕' }
+      ]},
+      { title: '夜游被抓扣分了', author: '倒霉蛋', body: '昨晚十一点半在走廊溜达，被费尔奇逮个正着，直接扣了十分。大家引以为戒，晚上十点以后千万别出公共休息室！', replies: [
+        { author: '夜游神', text: '节哀，我之前也被抓过' }, { author: '乖乖牌', text: '活该，违规就要认罚' }, { author: '匿名', text: '费尔奇晚上不睡觉的吗' }, { author: '学长', text: '隐身衣了解一下' }, { author: '新生', text: '好恐怖，我绝对不夜游' }, { author: '吃瓜', text: '经典剧情' }, { author: '调皮鬼', text: '下次小心点' }
+      ]}
+    ];
+  }
+
+  // 4. 覆盖旧论坛，限制最多 5 条帖子
+  gameState.forum = newPosts.slice(0, 5);
+  LS.set('hp_state', gameState);
+  window.renderForum();
+
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 刷新论坛'; }
+  window.pushDisplay('system', '🔄 学院论坛已刷新（共5个帖子，每帖7~8条跟帖）');
+};
 // ==================== 交易模块 ====================
 window.renderShop = () => {
   const box = $('shop-body');
@@ -1721,6 +1793,14 @@ window.sendAction = async (text) => {
   window._busySince = Date.now();
   $('send-btn').disabled = true; $('user-input').disabled = true; $('options').innerHTML = '';
   window.pushDisplay('user', text); history.push({ role: 'user', content: text });
+  // 判定论坛帖子数是否达到10条，达到则自动清空并在下一轮刷新
+if (gameState.forum && gameState.forum.length >= 10) {
+  gameState.forum = [];
+  LS.set('hp_state', gameState);
+  window.pushDisplay('system', '🔄 论坛帖数达到10条上限，自动清空重置。下一轮对话将自动刷新5条新帖。');
+  // 标记为自动刷新，在AI回复后触发
+  window._autoRefreshForum = true;
+}
   const messages = [{ role: 'system', content: buildSystemPrompt(text) }, ...history.slice(-10)];
   window.showLoading();
 
@@ -1826,6 +1906,11 @@ if (Array.isArray(data.forum_posts)) {
 }
       LS.set('hp_state', gameState); window.renderStatus();
     }
+    // 如果触发了自动清空，自动请求生成新论坛
+if (window._autoRefreshForum) {
+  window._autoRefreshForum = false;
+  setTimeout(() => { window.refreshForumWithAI(); }, 1500);
+}
     window.renderOptions(data.options);
   } catch(err) {
     window.hideLoading();
