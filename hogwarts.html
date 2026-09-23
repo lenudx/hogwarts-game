@@ -334,6 +334,7 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     <button class="only-mobile" onclick="window.openModal('modal-forum')" title="学院论坛">📢</button>
     <button class="only-mobile" onclick="window.openModal('modal-shop')" title="交易">🛒</button>
     <button class="only-mobile" onclick="window.openModal('modal-reputation')" title="学院风评">🏆</button>
+    <button class="only-mobile" onclick="window.openModal('modal-map')" title="活点地图">🗺️</button>
   </div>
   <div class="header-info">
     <div class="h-line"><span class="h-label">年份</span><span id="ui-header-year">2000年</span> <span style="color:#4c5e7d;">|</span> <span class="h-label">时间</span><span id="ui-header-time">上午</span></div>
@@ -407,6 +408,23 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 </div>
 
 <div class="modal" id="modal-reputation">
+<div class="modal" id="modal-map">
+  <div class="modal-box" style="max-width:600px; background: #111a2e; border: 1px solid #d4af37;">
+    <div class="modal-head" style="background: rgba(212,175,55,0.1); border-bottom: 1px solid rgba(212,175,55,0.3);">
+      <h3 style="color: #d4af37; font-family: 'Cinzel', serif;">🗺️ 活点地图</h3>
+      <div style="display:flex;gap:6px;">
+        <button onclick="window.closeModal('modal-map')" style="background:#222; border:1px solid #555;">关闭</button>
+      </div>
+    </div>
+    <div class="modal-body" style="background: radial-gradient(circle at 50% 30%, #1a2333 0%, #0a0f1c 100%); padding: 14px; overflow-y: auto;">
+      <div style="text-align:center; font-size:11px; color:#d4af37; margin-bottom:10px; letter-spacing:2px;">
+        月亮脸、虫尾巴、大脚板、尖头叉子先生们，荣幸地呈现
+      </div>
+      <div id="map-tabs" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; justify-content:center;"></div>
+      <div id="map-locations" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+    </div>
+  </div>
+</div>
   <div class="modal-box" style="max-width:560px;">
     <div class="modal-head">
       <h3>🏆 学院风评</h3>
@@ -602,6 +620,7 @@ if (Array.isArray(displayHistory)) {
 window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
 window.openModal = (id) => { 
 if(id === 'modal-shop') { renderShop(); }
+if(id === 'modal-map') { renderMap(); }
 if(id === 'modal-reputation') { renderReputation(); }
   if(id === 'modal-settings') {
     renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
@@ -1167,6 +1186,207 @@ window.processYearEnd = () => {
   window.renderReputation();
   window.pushDisplay('system', `🏆 学年末结算：${houseNames[champion]} 获得学院杯！`);
 };
+// ==================== 活点地图 + 副本系统 + 核心规则 ====================
+const MAP_LOCATIONS = [
+  { type:'城堡内', name:'礼堂', desc:'开学宴和分院仪式举行的地方，天花板被施了魔法，能显示外面的天空。', danger:0 },
+  { type:'城堡内', name:'入口大厅', desc:'城堡的正门大厅，通往各学院公共休息室和地下室。', danger:0 },
+  { type:'城堡内', name:'地下室', desc:'阴冷潮湿的地牢区域，斯莱特林公共休息室就在这儿。', danger:0 },
+  { type:'城堡内', name:'船屋', desc:'新生们乘船渡湖后上岸的地方。', danger:0 },
+  { type:'城堡内', name:'主楼梯', desc:'142级台阶，经常变换方向，极其容易迷路。', danger:0 },
+  { type:'城堡内', name:'有求必应屋', desc:'当你真正需要时，它就会出现，里面应有尽有。', danger:0 },
+  { type:'城堡内', name:'校医院', desc:'庞弗雷夫人掌管，专治各种魔法伤病。', danger:0 },
+  { type:'城堡内', name:'图书馆', desc:'平斯夫人管理，安静得能听见针掉在地上。', danger:0 },
+  { type:'城堡内', name:'禁书区', desc:'需要教授签名才能借阅，里面藏着很多危险的黑魔法书。', danger:5 },
+  { type:'城堡内', name:'哭泣的桃金娘的盥洗室', desc:'常年闹鬼的女生盥洗室，是进入密室的关键入口。', danger:5 },
+  { type:'城堡内', name:'级长盥洗室', desc:'只有级长才能使用，里面有超级豪华的泡泡浴。', danger:5 },
+  { type:'城堡内', name:'厨房', desc:'在赫奇帕奇公共休息室旁边，家养小精灵在这里准备食物。', danger:0 },
+  { type:'城堡内', name:'奖杯室', desc:'陈列着历代魁地奇奖杯和学院杯。', danger:0 },
+  { type:'城堡内', name:'扫帚间', desc:'存放着学校破旧的扫帚和魁地奇器材。', danger:0 },
+  { type:'城堡内', name:'猫头鹰棚屋', desc:'学校猫头鹰的栖息地，可以在这里寄信。', danger:0 },
+  { type:'城堡内', name:'钟塔庭院', desc:'学生们课间休息聚集的地方，钟声特别响亮。', danger:0 },
+  { type:'城堡内', name:'方庭', desc:'城堡中心的庭院。', danger:0 },
+  { type:'城堡内', name:'拱桥庭院', desc:'连接城堡主楼和场地的拱桥。', danger:0 },
+  { type:'城堡内', name:'决斗室', desc:'练习决斗技巧的地方，弗立维教授经常在这里授课。', danger:0 },
+  { type:'城堡内', name:'地图密室', desc:'有着巨大霍格沃茨模型的密室。', danger:0 },
+  { type:'城堡内', name:'菲戈教授教室', desc:'上魔法史课的地方，宾斯教授的声音很催眠。', danger:0 },
+  { type:'学院', name:'格兰芬多塔楼（公共休息室）', desc:'胖夫人看守入口，勇敢者的家园。', danger:0 },
+  { type:'学院', name:'斯莱特林公共休息室（地牢）', desc:'石墙后面，能看见黑湖底下的神秘生物。', danger:0 },
+  { type:'学院', name:'拉文克劳塔楼（公共休息室）', desc:'需要回答鹰环的谜语才能进入，充满智慧的空气。', danger:0 },
+  { type:'学院', name:'赫奇帕奇公共休息室', desc:'靠近厨房，温暖舒适，充满泥土的芬芳。', danger:0 },
+  { type:'教室', name:'魔药课教室', desc:'斯内普教授的地盘，地下室比外面冷很多。', danger:0 },
+  { type:'教室', name:'变形课教室', desc:'麦格教授的地盘，猫和家具随时可能互换。', danger:0 },
+  { type:'教室', name:'草药课教室（温室）', desc:'斯普劳特教授的地盘，曼德拉草的叫声非常刺耳。', danger:0 },
+  { type:'教室', name:'魔咒课教室', desc:'弗立维教授的地盘，小个子的他能把桌椅变出花来。', danger:0 },
+  { type:'教室', name:'黑魔法防御术教室', desc:'每年都会换教授，却总有点不对劲。', danger:0 },
+  { type:'教室', name:'魔法史教室', desc:'幽灵宾斯教授讲述着古老的故事。', danger:0 },
+  { type:'教室', name:'麻瓜研究教室', desc:'了解麻瓜生活方式的地方。', danger:0 },
+  { type:'教室', name:'保护神奇生物课场地', desc:'海格的地盘，他喜欢养各种危险又可爱的生物。', danger:0 },
+  { type:'塔楼', name:'天文塔（天文课教室）', desc:'晚上爬上这里看星星，是许多学生的浪漫回忆。', danger:0 },
+  { type:'塔楼', name:'北塔楼（占卜课教室）', desc:'特里劳妮教授的地盘，充满烟雾和雪利酒的味道。', danger:0 },
+  { type:'塔楼', name:'西塔楼', desc:'猫头鹰棚屋所在的地方。', danger:0 },
+  { type:'塔楼', name:'校长塔', desc:'邓布利多的办公室所在地，入口有石兽看守。', danger:10 },
+  { type:'塔楼', name:'钟塔', desc:'霍格沃茨最高的建筑之一，钟声能传遍整个城堡。', danger:0 },
+  { type:'塔楼', name:'上锁的小塔', desc:'常年锁着，谁也不知道里面有什么。', danger:10 },
+  { type:'塔楼', name:'八角塔', desc:'城堡的一座附属塔楼。', danger:0 },
+  { type:'塔楼', name:'瞭望塔', desc:'能看到整个霍格沃茨场地。', danger:0 },
+  { type:'地牢', name:'密室', desc:'萨拉查·斯莱特林的遗产，蛇佬腔才能打开。', danger:20 },
+  { type:'地牢', name:'忌辰晚会地牢', desc:'差点没头的尼克举办忌辰晚会的地方。', danger:5 },
+  { type:'地牢', name:'地牢储物间', desc:'堆满了旧桌椅和废弃的魔法物品。', danger:0 },
+  { type:'地牢', name:'地下码头', desc:'黑湖底下的码头，通往城堡的秘密水路。', danger:10 },
+  { type:'场地', name:'黑湖', desc:'深不见底，里面住着人鱼和巨乌贼。', danger:10 },
+  { type:'场地', name:'禁林', desc:'学校禁止学生进入的区域，里面危机四伏。', danger:20 },
+  { type:'场地', name:'打人柳', desc:'一棵脾气暴躁的树，谁碰它它就揍谁。', danger:15 },
+  { type:'场地', name:'魁地奇球场', desc:'格兰芬多和斯莱特林球迷欢呼的地方。', danger:0 },
+  { type:'场地', name:'花园', desc:'草药课温室外的花园，种着各种魔法植物。', danger:0 },
+  { type:'场地', name:'海格小屋', desc:'海格的家，门口有牙牙，里面经常有岩皮饼。', danger:0 },
+  { type:'场地', name:'学校大门', desc:'两座带翅膀的野猪雕像守着入口。', danger:0 },
+  { type:'场地', name:'石桥/高架桥', desc:'连接城堡和场地的桥梁，下面是深谷。', danger:0 },
+  { type:'场地', name:'邓布利多坟墓', desc:'一代伟人长眠于此，白色的墓穴在阳光下微微发光。', danger:10 },
+  { type:'场地', name:'人鱼部落', desc:'黑湖底的人鱼部落，拥有自己的语言和文化。', danger:15 },
+  { type:'禁林内', name:'蜘蛛巢穴', desc:'阿拉戈克的后代们生活在这里，密密麻麻。', danger:25 },
+  { type:'禁林内', name:'马人营地', desc:'马人们在这里观察星象，对人类保持警惕。', danger:15 },
+  { type:'禁林内', name:'森林湖', desc:'禁林深处的小湖泊，水很清澈但深不见底。', danger:10 },
+  { type:'禁林内', name:'红帽子地洞', desc:'红帽子是一种邪恶的生物，会袭击迷路的人。', danger:25 },
+  { type:'禁林内', name:'森林果园', desc:'禁林里一片结满神奇果实的果园。', danger:5 },
+  { type:'密道', name:'独眼女巫密道', desc:'通往蜂蜜公爵的地道，需要念“左右分离”。', danger:10 },
+  { type:'密道', name:'打人柳密道', desc:'通向尖叫棚屋的秘密通道，打人柳底下有一个入口。', danger:15 },
+  { type:'密道', name:'五楼镜子密道', desc:'五楼的一面镜子后面藏着一条密道。', danger:10 },
+  { type:'密道', name:'马屁精格雷戈里雕像密道', desc:'雕像背后隐藏着通往霍格莫德的密道。', danger:10 },
+  { type:'密道', name:'挂毯密道', desc:'挂毯后面是一条隐蔽的通道。', danger:10 },
+  { type:'密道', name:'消失柜', desc:'有求必应屋里的一个柜子，可以通往博金-博克店。', danger:15 },
+  { type:'霍格莫德', name:'三把扫帚', desc:'罗斯默塔女士的酒吧，黄油啤酒最有名。', danger:0 },
+  { type:'霍格莫德', name:'蜂蜜公爵', desc:'糖果店，比比多味豆和巧克力蛙应有尽有。', danger:0 },
+  { type:'霍格莫德', name:'猪头酒吧', desc:'阿不福思开的酒吧，里面的人都遮遮掩掩。', danger:5 },
+  { type:'霍格莫德', name:'佐科笑话店', desc:'卖各种恶作剧道具，弗雷德和乔治的最爱。', danger:0 },
+  { type:'霍格莫德', name:'帕笛芙茶馆', desc:'情侣约会的地方，到处是粉色泡泡。', danger:0 },
+  { type:'霍格莫德', name:'霍格莫德火车站', desc:'霍格沃茨特快列车的终点站。', danger:0 },
+  { type:'霍格莫德', name:'风雅牌巫师服装店', desc:'出售各种魔法长袍和礼服。', danger:0 },
+  { type:'霍格莫德', name:'珍禽异兽店', desc:'卖各种猫头鹰、老鼠和猫。', danger:0 },
+  { type:'霍格莫德', name:'巨著与卷轴店', desc:'霍格莫德的书店，有各种冷门书籍。', danger:0 }
+];
+
+let currentMapTab = '全部';
+let dungeonState = { active: false, location: '', round: 0, log: [] };
+
+window.renderMap = () => {
+  const tabsBox = $('map-tabs');
+  const locBox = $('map-locations');
+  if (!tabsBox || !locBox) return;
+
+  const tabs = ['全部', '城堡内', '学院', '教室', '塔楼', '地牢', '场地', '禁林内', '密道', '霍格莫德'];
+  tabsBox.innerHTML = tabs.map(t => `<button onclick="window.switchMapTab('${t}')" style="padding:6px 12px; font-size:11px; border-radius:20px; border:1px solid ${currentMapTab === t ? '#d4af37' : '#333'}; background:${currentMapTab === t ? 'rgba(212,175,55,0.2)' : 'transparent'}; color:${currentMapTab === t ? '#d4af37' : '#888'};">${t}</button>`).join('');
+
+  const filtered = MAP_LOCATIONS.filter(loc => currentMapTab === '全部' || loc.type === currentMapTab);
+  locBox.innerHTML = filtered.map(loc => {
+    let color = '#4a9d7a'; // 绿
+    if (loc.danger >= 20) color = '#b5544a'; // 红
+    else if (loc.danger >= 10) color = '#d4af37'; // 黄
+    else if (loc.danger >= 5) color = '#7a8dae'; // 蓝
+    return `
+      <div style="flex: 1 0 calc(50% - 6px); min-width: 120px; padding: 10px; background: rgba(30,42,69,0.5); border: 1px solid ${color}55; border-radius: 8px; cursor: pointer; transition: 0.2s;" onclick="window.openLocationDetail('${loc.name}')">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${color};box-shadow:0 0 8px ${color};"></span>
+          <span style="font-size:12px; color:#e0e6f0;">${loc.name}</span>
+        </div>
+        <div style="font-size:10px; color:#7a8dae; margin-top:4px;">${loc.type}</div>
+      </div>
+    `;
+  }).join('');
+};
+
+window.switchMapTab = (t) => { currentMapTab = t; window.renderMap(); };
+
+window.openLocationDetail = (name) => {
+  const loc = MAP_LOCATIONS.find(l => l.name === name);
+  if (!loc) return;
+  
+  // 夜游判定
+  const timeStr = gameState.time || '';
+  const hourMatch = timeStr.match(/·\s*(\d{1,2})/);
+  let isNight = false;
+  let hour = 0;
+  if (hourMatch) {
+    hour = parseInt(hourMatch[1]);
+    if (hour >= 22 || hour < 4) isNight = true;
+  }
+  
+  let alertMsg = '';
+  if (isNight && loc.danger > 0) {
+    alertMsg = `<div style="margin-top:8px; font-size:11px; color:#f87171;">⚠ 现在是夜游时间（22:00-04:00），前往此地可能会被管理员或费尔奇抓到，导致扣分！</div>`;
+  }
+
+  const detailBox = $('map-locations');
+  detailBox.innerHTML = `
+    <div style="width:100%; background: rgba(13,20,36,0.95); border: 1px solid #d4af37; border-radius: 8px; padding: 14px; animation: fadeIn 0.3s;">
+      <div style="font-size:16px; color:#d4af37; font-weight:600; margin-bottom:6px;">${loc.name}</div>
+      <div style="font-size:11px; color:#7a8dae; margin-bottom:8px;">${loc.type} · 危险等级：${loc.danger}/25</div>
+      <div style="font-size:13px; line-height:1.6; color:#e0e6f0; margin-bottom:12px;">${loc.desc}</div>
+      ${alertMsg}
+      <div style="display:flex; gap:6px; margin-top:12px;">
+        <button class="primary" style="flex:1; padding:10px;" onclick="window.enterDungeon('${loc.name}')">进入副本探索</button>
+        <button style="flex:1; padding:10px;" onclick="window.renderMap()">返回地图</button>
+      </div>
+    </div>
+  `;
+};
+
+window.enterDungeon = (name) => {
+  if (dungeonState.active) return alert('你已经在副本中了！请先完成当前副本。');
+  const loc = MAP_LOCATIONS.find(l => l.name === name);
+  if (!loc) return;
+
+  window.closeModal('modal-map');
+  dungeonState = { active: true, location: name, round: 0, log: [] };
+  
+  // 夜游扣分
+  const timeStr = gameState.time || '';
+  const hourMatch = timeStr.match(/·\s*(\d{1,2})/);
+  let isNight = false;
+  if (hourMatch) {
+    const hour = parseInt(hourMatch[1]);
+    if (hour >= 22 || hour < 4) isNight = true;
+  }
+  if (isNight && loc.danger > 0) {
+    gameState.houseCup.reputation.good -= 5;
+    gameState.houseCup[gameState.houseCup.ourHouse ? 'gryffindor' : 'gryffindor'] -= 10; // 简化处理
+    LS.set('hp_state', gameState);
+    window.pushDisplay('system', `🚨 夜游被抓！因为在 ${name} 夜游，你被扣了 10 分（美名 -5）！`);
+  }
+
+  window.pushDisplay('system', `📜 你进入了【${name}】的副本。本副本固定 20 轮对话，完成将自动返回主页并归档记忆。`);
+  window.sendAction(`【副本模式】你进入了 ${name}。请以这里为场景开始冒险。`);
+};
+
+// 副本轮数控制
+window.dungeonCountdown = () => {
+  if (!dungeonState.active) return;
+  dungeonState.round++;
+  if (dungeonState.round >= 20) {
+    window.endDungeon();
+  }
+};
+
+window.endDungeon = () => {
+  if (!dungeonState.active) return;
+  const locName = dungeonState.location;
+  dungeonState.active = false;
+  window.pushDisplay('system', `🏁 副本【${locName}】结束，共计 20 轮。记忆已归档到你的角色档案中。`);
+  // 归档到状态里
+  if (!gameState.memories) gameState.memories = [];
+  gameState.memories.push({ location: locName, time: gameState.time, round: 20, t: Date.now() });
+  LS.set('hp_state', gameState);
+};
+
+// 入学年龄计算规则
+window.calculateEnrollYear = (birthYear, birthMonth, birthDay) => {
+  let by = parseInt(birthYear);
+  let bm = parseInt(birthMonth) || 1;
+  let bd = parseInt(birthDay) || 1;
+  if (bm > 9 || (bm === 9 && bd > 1)) {
+    return by + 12; // 9月1日之后出生，晚一年入学
+  }
+  return by + 11; // 9月1日之前（含）出生，当年入学
+};
 window.resetAllData = () => {
   if(!confirm('⚠️ 确定要清空所有本地缓存吗？这将所有/ API、世界书、预设和游戏进度！')) return;
   localStorage.clear();
@@ -1451,6 +1671,7 @@ window.sendAction = async (text) => {
     const a = s.indexOf('{'), b = s.lastIndexOf('}'); if (a >= 0 && b > a) s = s.slice(a, b + 1);
     let data; try { data = JSON.parse(s); } catch(e) { data = { narration: raw, state_changes: {}, options: [] }; }
     window.pushDisplay('assistant', data.narration || data.text || '（无叙述）');
+    window.dungeonCountdown(); // 副本轮数自动计数
     // 把状态变化提取成单独的气泡
 if (data.state_changes) {
   let sysMsg = [];
@@ -2195,7 +2416,7 @@ window.ccConfirmCreate = () => {
   c.appearance = $('cc-cr-appearance').value.trim();
 
   if (isStudent) {
-    const ey = parseInt($('cc-cr-enroll').value) || (parseInt(c.birthYear) + 11);
+    const ey = parseInt($('cc-cr-enroll').value) || window.calculateEnrollYear(c.birthYear, (c.birthday||'').split('-')[0], (c.birthday||'').split('-')[1] || '1');
     c.enrollYear = String(ey);
     c.gradYear = String(ey + 7);
     c.occupation = ''; c.rank = ''; c.workplace = ''; c.yearsWorked = ''; c.occupationDesc = '';
