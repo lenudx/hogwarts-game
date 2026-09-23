@@ -409,6 +409,15 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 </div>
 
 <div class="modal" id="modal-reputation">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head">
+      <h3>🏆 学院风评</h3>
+      <button onclick="window.closeModal('modal-reputation')">关闭</button>
+    </div>
+    <div class="modal-body" id="reputation-body"></div>
+  </div>
+</div>
+
 <div class="modal" id="modal-map">
   <div class="modal-box" style="max-width:600px; background: #111a2e; border: 1px solid #d4af37;">
     <div class="modal-head" style="background: rgba(212,175,55,0.1); border-bottom: 1px solid rgba(212,175,55,0.3);">
@@ -424,14 +433,6 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       <div id="map-tabs" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; justify-content:center;"></div>
       <div id="map-locations" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
     </div>
-  </div>
-</div>
-  <div class="modal-box" style="max-width:560px;">
-    <div class="modal-head">
-      <h3>🏆 学院风评</h3>
-      <button onclick="window.closeModal('modal-reputation')">关闭</button>
-    </div>
-    <div class="modal-body" id="reputation-body"></div>
   </div>
 </div>
 <div class="modal" id="modal-settings">
@@ -1867,14 +1868,9 @@ window.onSend = () => {
   // 核心反作弊拦截
   if (window.isCheatingAttempt(v)) {
     alert('🚫 系统警告：禁止通过文字游戏、括号旁白或角色扮演直接索要金币与好感度！\n请通过正常游戏（送礼、交易、剧情）获取。');
-    return; // 直接拦截，不让玩家发送
+    return;
   }
 
-  // 原有逻辑继续
-  if(busy){ ... }
-  const el = $('user-input');
-  const v = el.value.trim();
-  if(!v) return;
   if(busy){
     if(Date.now() - (window._busySince || 0) > 30000){
       // 卡住超过 30 秒，强制解锁
