@@ -2858,8 +2858,11 @@ window.ccConfirmCreate = () => {
   window.renderStatus();
 
   const opening = isStudent
-  ? `（游戏开始）我的角色是 ${tl.name}（${tl.range}）的学生。请根据这个时代的具体背景，描述我收到录取通知书并前往霍格沃茨的情景作为开场。注意：绝对不许出现不属于这个时代的人或物！`
-  : `（游戏开始）我的角色是一名 ${c.occupation || '巫师'}（${tl.name}，${tl.range}）。请根据这个时代的具体背景，描述我日常生活的开场。注意：绝对不许出现不属于这个时代的人或物！`;
+    ? `（游戏开始）我的角色是 ${tl.name}（${tl.range}）的学生。请根据这个时代的具体背景，描述我收到录取通知书并前往霍格沃茨的情景作为开场。注意：绝对不许出现不属于这个时代的人或物！`
+    : `（游戏开始）我的角色是一名 ${c.occupation || '巫师'}（${tl.name}，${tl.range}）。请根据这个时代的具体背景，描述我日常生活的开场。注意：绝对不许出现不属于这个时代的人或物！`;
+
+  window.sendAction(opening);
+};
 
 // 创建隐藏的文件上传 input（用于侧栏头像）
 window.addEventListener('DOMContentLoaded', () => {
