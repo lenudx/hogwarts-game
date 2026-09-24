@@ -1960,6 +1960,7 @@ function buildSystemPrompt(extra='') {
 finalPrompt += `当前玩家的时代是：${tl.name}（${tl.range}）。时代特征：${tl.desc}。\n`;
 finalPrompt += `当前玩家的身份是：${identityStr}。\n`;
 finalPrompt += `【警告】你绝对不能引入不属于这个时代的角色、物品或事件！例如，如果当前是长世代，绝对不允许出现纳威·隆巴顿、哈利·波特等子世代人物！请严格按照该时代的真实历史背景来生成剧情！\n\n`;
+finalPrompt += `【NPC态度规则】必须根据玩家的血统（${gameState.charCard.blood || '未定'}）和家族背景（${gameState.charCard.family || '未设定'}）来判断NPC对玩家的态度。例如，纯血家族出身的角色可能会受到某些纯血巫师的尊重，而麻瓜出身或特定家族（如韦斯莱）可能会受到斯莱特林学生的轻视。请将此规则融入剧情互动中。\n\n`;
   if(preset && preset.prompts) {
     preset.prompts.forEach(entry => {
       if (!entry.enabled) return;
@@ -2442,7 +2443,7 @@ window.resetBeautify = () => {
 // ==================== 人物属性（侧栏） ====================
 const DEFAULT_CHARCARD = {
   name: '', gender: '', house: '', hair: '', eye: '', pet: '', patronus: '',
-  wand: '', blood: '', birthYear: '', birthday: '', mbti: '', zodiac: '', height: '',
+  wand: '', blood: '', family: '', birthYear: '', birthday: '', mbti: '', zodiac: '', height: '',
   appearance: '', photo: '', created: false,
   timeline: 'child', identityType: 'student',
   occupation: '', rank: '', workplace: '', yearsWorked: '', occupationDesc: '',
@@ -2526,9 +2527,10 @@ function renderCreateStep(){
   }
 
   if (ccCreateStep === 'form') {
-    const tl = TIMELINES.find(t => t.id === ccCreateData.timeline);
-    const isStudent = ccCreateData.identityType === 'student';
-    const birthHint = `建议 ${tl.birthRange[0]}—${tl.birthRange[1]}`;
+  const tl = TIMELINES.find(t => t.id === ccCreateData.timeline);
+  const isStudent = ccCreateData.identityType === 'student';
+  const birthHint = `建议 ${tl.birthRange[0]}—${tl.birthRange[1]}`;
+  const c = gameState.charCard; // 读取当前角色数据用于回显
     box.innerHTML = `
       <div style="font-size:11px;color:var(--accent-cyan);margin-bottom:10px;">
         ${tl.name} · ${isStudent ? '学生' : '成年人'}
@@ -2543,8 +2545,10 @@ function renderCreateStep(){
         </select></div>
         <div style="flex:1;"><label>血统</label><select id="cc-cr-blood" style="width:100%;">
           <option value="">未定</option><option>纯血</option><option>混血</option><option>麻瓜出身</option>
+          <div class="field"><label>家族 / 背景（如：马尔福、韦斯莱、波特、布莱克等）</label><input id="cc-cr-family" placeholder="如：韦斯莱家族 / 麻瓜出身孤儿" value="${esc(c.family || '')}"></div>
         </select></div>
       </div>
+      
 
       <div class="field" style="display:flex;gap:6px;">
         <div style="flex:1;"><label>发色</label><input id="cc-cr-hair" placeholder="黑 / 金"></div>
@@ -2715,6 +2719,7 @@ window.renderCharSidebar = () => {
 
   box.innerHTML = `
     <div class="cc-sidebar-photo-wrap">${photoHtml}</div>
+    <button class="primary" style="width:100%; margin-bottom:10px;" onclick="window.openCreateModal()">✏️ 修改角色档案</button>
     <div class="cc-sidebar-timeline">
       <div style="color:var(--accent-cyan);font-size:11px;">${tl.name}</div>
       <div>${timelineHtml}</div>
@@ -2821,6 +2826,7 @@ window.ccConfirmCreate = () => {
   c.patronus = $('cc-cr-patronus').value.trim();
   c.pet = $('cc-cr-pet').value.trim();
   c.wand = $('cc-cr-wand').value.trim();
+  c.family = $('cc-cr-family').value.trim();
   c.mbti = $('cc-cr-mbti').value.trim();
   c.zodiac = $('cc-cr-zodiac').value.trim();
   c.height = $('cc-cr-height').value.trim();
@@ -2881,25 +2887,26 @@ window.addEventListener('DOMContentLoaded', () => {
 window.resetGame = () => {
   if(!confirm('确定要清空进度重新开始吗？（API、世界书、预设都将保留）')) return;
   
-  // 1. 彻底重置游戏状态，但保留系统配置
+  // 1. 彻底重置游戏状态
   gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
-  gameState.charCard = JSON.parse(JSON.stringify(DEFAULT_CHARCARD)); // 关键！必须重置人物卡，避免崩溃
-  history = []; displayHistory = [];
+  gameState.charCard = JSON.parse(JSON.stringify(DEFAULT_CHARCARD));
   
-  // 2. 写入本地缓存
+  // 2. 关键修复：重新开局必须强制分配商店和学院杯！
+  gameState.shops = {};
+  gameState.shopRefreshCount = 5;
+  gameState.lastShopRefreshDate = '';
+  SHOP_DATA.forEach(s => { gameState.shops[s.key] = JSON.parse(JSON.stringify(s.items)); });
+  gameState.houseCup = { gryffindor: 0, slytherin: 0, ravenclaw: 0, hufflepuff: 0, ourHouse: '', champion: '', buffs: [], reputation: { good: 0, evil: 0 } };
+
+  history = []; displayHistory = [];
   LS.set('hp_state', gameState);
   LS.set('hp_history', history);
   LS.set('hp_display', displayHistory);
   
-  // 3. 关闭设置弹窗
   window.closeModal('modal-settings');
-  
-  // 4. 刷新界面，清空剧情
   window.renderStatus(); 
   window.renderStory(); 
   window.renderOptions([]);
-  
-  // 5. 直接弹出建档案的界面，而不是发消息（发消息会因为没有角色而卡死！）
   window.openCreateModal();
 };
 
