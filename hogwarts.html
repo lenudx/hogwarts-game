@@ -665,7 +665,16 @@ if (!gameState.pet) {
 window.renderPet = () => {
   const box = $('pet-body');
   if (!box) return;
+  
+  // ★ 核心修复：防止 pet 对象或属性丢失导致渲染崩溃
+  if (!gameState.pet) {
+    gameState.pet = { name: '未命名宠物', type: '猫头鹰', image: '', affinity: 50, hunger: 100, cleanliness: 100 };
+  }
   const p = gameState.pet;
+  if (typeof p.affinity !== 'number' || isNaN(p.affinity)) p.affinity = 50;
+  if (typeof p.hunger !== 'number' || isNaN(p.hunger)) p.hunger = 100;
+  if (typeof p.cleanliness !== 'number' || isNaN(p.cleanliness)) p.cleanliness = 100;
+  if (typeof p.type !== 'string') p.type = '猫头鹰';
 
   const avatarHtml = p.image
     ? `<img src="${p.image}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid var(--accent-blue); margin-bottom:10px;">`
@@ -677,7 +686,7 @@ window.renderPet = () => {
       <button class="primary" style="padding:6px 12px; font-size:11px;" onclick="document.getElementById('pet-photo-input').click()">📷 上传宠物照片</button>
       <input type="file" id="pet-photo-input" accept="image/*" style="display:none;" onchange="window.uploadPetPhoto(event)">
     </div>
-    <div style="font-size:16px; font-weight:600; color:var(--accent-cyan); margin-bottom:4px;">${esc(p.name)}</div>
+    <div style="font-size:16px; font-weight:600; color:var(--accent-cyan); margin-bottom:4px;">${esc(p.name || '未命名宠物')}</div>
     <div style="font-size:12px; color:var(--text-dim); margin-bottom:16px;">种类：${esc(p.type)}</div>
 
     <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px; text-align:left;">
@@ -763,33 +772,40 @@ window.cleanPet = () => {
 // ==================== 界面渲染 ====================
 window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
 window.openModal = (id) => { 
-  if(id === 'modal-shop') { 
-    if (!gameState.shops || !gameState.shops.honeydukes) {
-      gameState.shops = {};
-      gameState.shopRefreshCount = 5;
-      gameState.lastShopRefreshDate = '';
-      SHOP_DATA.forEach(s => { gameState.shops[s.key] = JSON.parse(JSON.stringify(s.items)); });
-      LS.set('hp_state', gameState);
+  // ★ 核心修复：先强制显示弹窗，防止由于后续渲染失败导致弹窗打不开
+  const modalEl = $(id);
+  if (modalEl) modalEl.classList.add('show'); 
+
+  try {
+    if(id === 'modal-shop') { 
+      if (!gameState.shops || !gameState.shops.honeydukes) {
+        gameState.shops = {};
+        gameState.shopRefreshCount = 5;
+        gameState.lastShopRefreshDate = '';
+        SHOP_DATA.forEach(s => { gameState.shops[s.key] = JSON.parse(JSON.stringify(s.items)); });
+        LS.set('hp_state', gameState);
+      }
+      renderShop(); 
     }
-    renderShop(); 
-  }
-  if(id === 'modal-map') { renderMap(); }
-  if(id === 'modal-reputation') { 
-    if (!gameState.houseCup) {
-      gameState.houseCup = { gryffindor: 0, slytherin: 0, ravenclaw: 0, hufflepuff: 0, ourHouse: '', champion: '', buffs: [], reputation: { good: 0, evil: 0 } };
-      LS.set('hp_state', gameState);
+    if(id === 'modal-map') { renderMap(); }
+    if(id === 'modal-reputation') { 
+      if (!gameState.houseCup) {
+        gameState.houseCup = { gryffindor: 0, slytherin: 0, ravenclaw: 0, hufflepuff: 0, ourHouse: '', champion: '', buffs: [], reputation: { good: 0, evil: 0 } };
+        LS.set('hp_state', gameState);
+      }
+      renderReputation(); 
     }
-    renderReputation(); 
+    if(id === 'modal-settings') {
+      renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
+      renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI(); renderSaveList();
+    }
+    if(id === 'modal-pet') { renderPet(); }
+    if(id === 'modal-forum') { renderForum(); }
+  } catch (error) {
+    console.error("弹窗渲染出错:", error);
+    // 如果你在手机端，可能来不及看控制台，这里弹出一个提示框方便排查
+    alert("打开窗口出错：" + error.message + "\n请尝试重置本地缓存。");
   }
-  if(id === 'modal-settings') {
-    renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
-    renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI(); renderSaveList();
-  }
-  if(id === 'modal-pet') { renderPet(); }
-  if(id === 'modal-forum') {
-    renderForum();
-  }
-  $(id).classList.add('show'); 
 };
 window.closeModal = (id) => $(id).classList.remove('show');
 window.switchSettingsTab = (tabId) => {
