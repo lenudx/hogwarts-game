@@ -1144,69 +1144,183 @@ window.refreshForumWithAI = async () => {
   window.pushDisplay('system', '🔄 学院论坛已刷新（共5个帖子，每帖7~8条跟帖）');
 };
 // ==================== 交易模块 ====================
+const SHOP_DATA = [
+  { shop: '蜂蜜公爵 & 三把扫帚', key: 'honeydukes', items: [
+    { name: '蜂蜜公爵经典糖果袋', desc: '含比比多味豆、巧克力蛙、柠檬雪宝，口味随机，附赠巫师卡。', price: 1, priceText: '1G' },
+    { name: '黄油啤酒', desc: '热泡沫丰厚，喝下去从喉咙暖到指尖。', price: 0.12, priceText: '2S' },
+    { name: '蜂蜜酒', desc: '微甜，喝多会让人想唱校歌。', price: 0.12, priceText: '2S' },
+    { name: '帕笛芙茶点盒', desc: '精致糕点组合，适合约会或道歉。', price: 1, priceText: '1G' },
+    { name: '岩皮饼', desc: '硬度惊人，牙口不好者请勿尝试。', price: 0.01, priceText: '3K' },
+    { name: '臭味糖', desc: '恶作剧专用，味道持续约十分钟。', price: 0.24, priceText: '4S' }
+  ]},
+  { shop: '丽痕书店 & 文具', key: 'flourish', items: [
+    { name: '魔药课本（标准）', desc: '基础配方，页边可能有人写过笔记。', price: 5, priceText: '5G' },
+    { name: '魔药课本（高级）', desc: '进阶配方，内容更深奥。', price: 9, priceText: '9G' },
+    { name: '黑魔法防御术专著', desc: '从博格特到摄魂怪，实用但略吓人。', price: 7, priceText: '7G' },
+    { name: '变形术专著', desc: '从针到猫，理论严谨，考试重点。', price: 8, priceText: '8G' },
+    { name: '古代魔文入门', desc: '需要耐心，读懂后能开不少古墓。', price: 12, priceText: '12G' },
+    { name: '稀有魔咒书', desc: '小众咒语合集，通常锁在玻璃柜里。', price: 15, priceText: '15G' },
+    { name: '羽毛笔与墨水套装', desc: '含自墨羽毛笔、变色墨水，赶论文神器。', price: 3, priceText: '3G' },
+    { name: '羊皮纸卷', desc: '标准尺寸，五卷起售。', price: 0.18, priceText: '3S' },
+    { name: '唱唱反调订阅', desc: '每期附赠蝻钩辟谣。', price: 1, priceText: '1G' },
+    { name: '魁地奇周刊订阅', desc: '每期附赠球员八卦。', price: 2, priceText: '2G' }
+  ]},
+  { shop: '奥利凡德魔杖店', key: 'ollivanders', items: [
+    { name: '魔杖', desc: '魔杖选择巫师，官方定价，不接受讨价还价。', price: 7, priceText: '7G' },
+    { name: '魔杖护理套装', desc: '含抛光布、木蜡和魔杖油，延长魔杖寿命。', price: 2, priceText: '2G' }
+  ]},
+  { shop: '魁地奇精品店', key: 'quidditch', items: [
+    { name: '金色飞贼模型', desc: '翅膀会扑动，但不会真飞走。', price: 10, priceText: '10G' },
+    { name: '扫帚模型（光轮/火弩箭）', desc: '收藏级，细节精致，适合摆宿舍。', price: 15, priceText: '15G' },
+    { name: '魁地奇战术板', desc: '可移动小球员，适合队长发火。', price: 5, priceText: '5G' },
+    { name: '扫帚护理套装', desc: '含保养油、尾枝修剪器和说明书。', price: 3, priceText: '3G' },
+    { name: '魁地奇手套', desc: '防滑，抓球更稳。', price: 4, priceText: '4G' },
+    { name: '球队徽章/海报', desc: '支持你的队伍，别在对手休息室乱戴。', price: 1, priceText: '1G' }
+  ]},
+  { shop: '神奇动物园', key: 'menagerie', items: [
+    { name: '猫头鹰', desc: '送信可靠，但需要喂食和清理。', price: 10, priceText: '10G' },
+    { name: '魔法生物玩偶（月痴兽）', desc: '软毛，会轻微发光。', price: 1, priceText: '1G' },
+    { name: '魔法生物玩偶（护树罗锅）', desc: '软毛，会黏人。', price: 2, priceText: '2G' },
+    { name: '龙蛋模型', desc: '会发热，但不会孵化，安全。', price: 8, priceText: '8G' },
+    { name: '米布米宝', desc: '会喷臭汁，请勿对老师使用。', price: 2, priceText: '2G' },
+    { name: '神奇动物饲料', desc: '通用型，但龙和猫头鹰不通用。', price: 0.29, priceText: '5S' },
+    { name: '龙皮护具', desc: '驯龙或高危工作用，防火防咬。', price: 15, priceText: '15G' }
+  ]},
+  { shop: '斯拉格与吉格斯药房', key: 'apothecary', items: [
+    { name: '标准魔药材料包', desc: '含蛇牙、干荨麻、月长石粉等基础材料。', price: 3, priceText: '3G' },
+    { name: '高级魔药材料包', desc: '含稀有根茎和稳定剂，魔药爱好者的心爱之物。', price: 10, priceText: '10G' },
+    { name: '稀有魔药套装', desc: '专业级，部分材料需登记。', price: 25, priceText: '25G' },
+    { name: '水晶瓶套装', desc: '五个大小不一的玻璃瓶，标价清晰。', price: 3, priceText: '3G' },
+    { name: '基础魔药材料', desc: '月长石粉、蛇牙、干瘪癞蛤蟆等，新鲜研磨效果更好。', price: 1, priceText: '1G' },
+    { name: '狼毒药剂/复方汤剂', desc: '处方药或管控品，购买需登记。', price: 50, priceText: '50G' }
+  ]},
+  { shop: '韦斯莱魔法把戏坊', key: 'weasleys', items: [
+    { name: '恶作剧糖果（粪弹）', desc: '经典恶作剧，臭味持续五分钟。', price: 0.24, priceText: '4S' },
+    { name: '恶作剧糖果（打嗝糖）', desc: '经典恶作剧，泡泡持续五分钟。', price: 0.29, priceText: '5S' },
+    { name: '逃课糖', desc: '吃完会发烧或流鼻血，别在考试前用。', price: 1, priceText: '1G' },
+    { name: '伸缩耳', desc: '偷听神器，但被抓住后果自负。', price: 3, priceText: '3G' },
+    { name: '韦斯莱烟花', desc: '会变成龙和火箭，室内禁用。', price: 5, priceText: '5G' },
+    { name: '防妖眼镜', desc: '声称能看见蝻钩，实际效果存疑。', price: 2, priceText: '2G' },
+    { name: '恶作剧设计图', desc: '给有创造力的学生。', price: 3, priceText: '3G' }
+  ]},
+  { shop: '风雅牌巫师服装店', key: 'gladrags', items: [
+    { name: '学院/格纹围巾', desc: '保暖，冬天在城堡里很显眼。', price: 2, priceText: '2G' },
+    { name: '高级礼服', desc: '舞会必备，自动熨平。', price: 20, priceText: '20G' },
+    { name: '龙皮外套', desc: '防火防割，价格昂贵。', price: 30, priceText: '30G' },
+    { name: '家族纹章饰品', desc: '带轻微防窃咒，可定制。', price: 15, priceText: '15G' },
+    { name: '法国高级香水', desc: '香味持久，带一点魅惑。', price: 8, priceText: '8G' },
+    { name: '魔法照片相框', desc: '照片里的人物会动，但不会说话。', price: 5, priceText: '5G' }
+  ]},
+  { shop: '博金-博克古董店', key: 'borgin', items: [
+    { name: '斯莱特林挂坠盒复制品', desc: '蛇形浮雕，打开有低沉嘶语，纯装饰。', price: 15, priceText: '15G' },
+    { name: '布莱克家族挂毯', desc: '纯血家谱，烧掉几个名字也不影响价格。', price: 50, priceText: '50G' },
+    { name: '时间转换器模型', desc: '不会真的倒转时间，放心。', price: 25, priceText: '25G' },
+    { name: '消失柜模型', desc: '一对卖，但不会连通。', price: 20, priceText: '20G' },
+    { name: '黑魔法书籍', desc: '需许可，黑市常翻倍。', price: 30, priceText: '30G' },
+    { name: '黑魔法匕首', desc: '锋利，带轻微诅咒。', price: 20, priceText: '20G' },
+    { name: '食死徒面具', desc: '收藏用，别戴出门。', price: 15, priceText: '15G' }
+  ]},
+  { shop: '傲罗装备 & 魔法部', key: 'auror', items: [
+    { name: '傲罗徽章', desc: '正式徽章，仿品会被查。', price: 5, priceText: '5G' },
+    { name: '防恶咒护具', desc: '含护胸、护臂和反咒衬里。', price: 20, priceText: '20G' },
+    { name: '黑魔法探测器', desc: '遇到黑魔法会发热振动。', price: 15, priceText: '15G' },
+    { name: '假眼', desc: '可动，视野奇怪，穆迪同款。', price: 10, priceText: '10G' },
+    { name: '案件卷宗包', desc: '防水防火，适合外勤。', price: 3, priceText: '3G' },
+    { name: '魔法部通缉令', desc: '当日更新，收藏历史也行。', price: 0.06, priceText: '1S' }
+  ]},
+  { shop: '天文塔 & 占卜店', key: 'divination', items: [
+    { name: '天文望远镜', desc: '观测星象，考试必备。', price: 15, priceText: '15G' },
+    { name: '水晶球', desc: '多数时候只映出你自己的脸。', price: 8, priceText: '8G' },
+    { name: '占卜套装（塔罗牌）', desc: '图案会轻微变化。', price: 2, priceText: '2G' },
+    { name: '占卜套装（星图）', desc: '可标注行星和星座。', price: 3, priceText: '3G' },
+    { name: '占卜课本', desc: '特里劳妮风格，充满模糊预言。', price: 5, priceText: '5G' }
+  ]}
+];
+
+// 初始化商店数据到 gameState
+if (!gameState.shops || !gameState.shops.honeydukes) {
+  gameState.shops = {};
+  gameState.shopRefreshCount = 5;
+  gameState.lastShopRefreshDate = '';
+  SHOP_DATA.forEach(s => {
+    gameState.shops[s.key] = JSON.parse(JSON.stringify(s.items));
+  });
+  LS.set('hp_state', gameState);
+}
+
 window.renderShop = () => {
   const box = $('shop-body');
   if (!box) return;
 
-  if (!gameState.shops.knockturn || gameState.shops.knockturn.length === 0) {
-    const knockItems = ['毒角兽角粉','黑魔法防御书','致幻蘑菇','被诅咒的项链','龙血','蛇牙'];
-    gameState.shops.knockturn = [
-      { id: uid(), name: knockItems[Math.floor(Math.random()*knockItems.length)], desc: '散发着危险的气息', price: Math.floor(Math.random()*50)+10, effect: { evil: Math.floor(Math.random()*10)+5 } },
-      { id: uid(), name: knockItems[Math.floor(Math.random()*knockItems.length)], desc: '翻倒巷的紧俏货', price: Math.floor(Math.random()*80)+20, effect: { evil: Math.floor(Math.random()*15)+10 } },
-      { id: uid(), name: knockItems[Math.floor(Math.random()*knockItems.length)], desc: '卖家不愿透露来源', price: Math.floor(Math.random()*100)+30, effect: { evil: Math.floor(Math.random()*20)+15 } }
-    ];
+  const currentDate = (gameState.time || '').split('·')[0].trim();
+  if (gameState.lastShopRefreshDate !== currentDate) {
+    gameState.shopRefreshCount = 5;
+    gameState.lastShopRefreshDate = currentDate;
+    LS.set('hp_state', gameState);
   }
-  if (!gameState.shops.tavern || gameState.shops.tavern.length === 0) {
-    const tavernItems = ['黄油啤酒','比比多味豆','巧克力蛙','滋滋蜜蜂糖','糖丝羽毛笔','会唱歌的贺卡'];
-    gameState.shops.tavern = [
-      { id: uid(), name: tavernItems[Math.floor(Math.random()*tavernItems.length)], desc: '甜度超标，学生最爱', price: Math.floor(Math.random()*5)+2, effect: { relations: { '同学': 5 } } },
-      { id: uid(), name: tavernItems[Math.floor(Math.random()*tavernItems.length)], desc: '霍格沃茨特供', price: Math.floor(Math.random()*8)+3, effect: { relations: { '同学': 10 } } },
-      { id: uid(), name: tavernItems[Math.floor(Math.random()*tavernItems.length)], desc: '送人自留都合适', price: Math.floor(Math.random()*10)+5, effect: { relations: { '朋友': 15 } } }
-    ];
-  }
-  LS.set('hp_state', gameState);
 
-  const renderList = (items, title, tag) => `
-    <div style="font-family:'Cinzel',serif;font-size:12px;color:var(--accent-cyan);margin:12px 0 6px;">${title}</div>
-    ${items.map((it, idx) => `
+  let html = `<div style="text-align:right;font-size:11px;color:var(--text-dim);margin-bottom:10px;">今日剩余刷新次数：${gameState.shopRefreshCount} 次</div>`;
+
+  SHOP_DATA.forEach(s => {
+    const items = gameState.shops[s.key] || [];
+    if (items.length === 0) return;
+    html += `<div style="font-family:'Cinzel',serif;font-size:12px;color:var(--accent-cyan);margin:12px 0 6px;">${s.shop}</div>`;
+    html += items.map((it, idx) => `
       <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
         <div style="flex:1;">
-          <div style="font-size:13px;color:var(--text-main);font-weight:600;">${esc(it.name)} <span class="tag">${tag}</span></div>
+          <div style="font-size:13px;color:var(--text-main);font-weight:600;">${esc(it.name)}</div>
           <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${esc(it.desc)}</div>
-          <div style="font-size:11px;color:var(--accent-blue);margin-top:4px;">💰 ${it.price} 加隆 ${it.effect.evil ? `| 恶名 +${it.effect.evil}` : ''} ${it.effect.relations ? `| 好感 +` : ''}</div>
+          <div style="font-size:11px;color:var(--accent-blue);margin-top:4px;">💰 ${it.priceText}</div>
         </div>
-        <button class="primary" style="padding:6px 12px;font-size:11px;flex-shrink:0;" onclick="window.buyItem('${tag}','${it.id}')">购买</button>
+        <button class="primary" style="padding:6px 12px;font-size:11px;flex-shrink:0;" onclick="window.buyItem('${s.key}','${it.name}')">购买</button>
       </div>
-    `).join('')}
-  `;
+    `).join('');
+  });
 
-  box.innerHTML = renderList(gameState.shops.knockturn, '🕯️ 翻倒巷（危险物品）', '翻倒巷') + renderList(gameState.shops.tavern, '🍺 酒馆（日常甜品）', '酒馆');
+  box.innerHTML = html;
 };
 
-window.buyItem = (type, id) => {
-  const list = type === '翻倒巷' ? gameState.shops.knockturn : gameState.shops.tavern;
-  const item = list.find(x => x.id === id);
+window.buyItem = (shopKey, itemName) => {
+  const items = gameState.shops[shopKey];
+  const item = items.find(x => x.name === itemName);
   if (!item) return;
   if (gameState.stats.galleons < item.price) return alert('加隆不够！');
   
   gameState.stats.galleons -= item.price;
-  if (item.effect.evil) gameState.houseCup.reputation.evil += item.effect.evil;
-  if (item.effect.relations) for(const [k,v] of Object.entries(item.effect.relations)) gameState.relations[k] = (gameState.relations[k]||0) + v;
-  
   gameState.inventory.push(item.name);
-  gameState.shops[type === '翻倒巷' ? 'knockturn' : 'tavern'] = list.filter(x => x.id !== id);
+  gameState.shops[shopKey] = items.filter(x => x.name !== itemName);
   
   LS.set('hp_state', gameState);
   window.renderShop();
   window.renderStatus();
-  window.pushDisplay('system', `✅ 购买了 ${item.name}，花费 ${item.price} 加隆`);
+  window.pushDisplay('system', `✅ 购买了 ${item.name}，花费 ${item.priceText}`);
 };
 
 window.refreshShop = () => {
-  gameState.shops.knockturn = [];
-  gameState.shops.tavern = [];
+  const currentDate = (gameState.time || '').split('·')[0].trim();
+  if (gameState.lastShopRefreshDate !== currentDate) {
+    gameState.shopRefreshCount = 5;
+    gameState.lastShopRefreshDate = currentDate;
+  }
+  
+  if (gameState.shopRefreshCount <= 0) {
+    return alert('今天的刷新次数已用完（每天最多5次）。');
+  }
+  if (gameState.stats.galleons < 5) {
+    return alert('加隆不够！刷新商店需要 5 加隆。');
+  }
+  
+  gameState.stats.galleons -= 5;
+  gameState.shopRefreshCount--;
+  gameState.shops = {};
+  SHOP_DATA.forEach(s => {
+    gameState.shops[s.key] = JSON.parse(JSON.stringify(s.items));
+  });
+  
+  LS.set('hp_state', gameState);
   window.renderShop();
-  window.pushDisplay('system', '🔄 商品已刷新');
+  window.renderStatus();
+  window.pushDisplay('system', `🔄 商店已刷新，花费 5 加隆。今日剩余刷新次数：${gameState.shopRefreshCount} 次`);
 };
 
 // ==================== 风评模块 ====================
@@ -2711,6 +2825,7 @@ window.ccConfirmCreate = () => {
     c.occupation = ''; c.rank = ''; c.workplace = ''; c.yearsWorked = ''; c.occupationDesc = '';
     gameState.time = ey + '年9月1日 · 上午';
     gameState.scene = '霍格沃茨特快列车';
+    gameState.stats.galleons = c.blood === '纯血' ? 100 : (c.blood === '混血' ? 90 : 80);
   } else {
     c.occupation = $('cc-cr-occupation').value || '';
     c.rank = $('cc-cr-rank').value.trim();
@@ -2723,6 +2838,7 @@ window.ccConfirmCreate = () => {
     const year = by ? (by + 22) : midYear;
     gameState.time = year + '年 · 上午';
     gameState.scene = '对角巷';
+    gameState.stats.galleons = 120;
   }
 
   c.created = true;
