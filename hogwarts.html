@@ -2614,7 +2614,7 @@ function renderCreateStep(){
 
       <div style="display:flex;gap:6px;margin-top:10px;">
         <button onclick="window.ccCreateBack()" style="flex:1;padding:10px;">← 返回</button>
-        <button class="primary" onclick="window.ccConfirmCreate()" style="flex:2;padding:10px;">进入世界</button>
+        <button class="primary" onclick="window.ccConfirmCreate()" style="flex:2;padding:10px;">保存档案</button>
       </div>
     `;
     return;
@@ -2624,6 +2624,12 @@ function renderCreateStep(){
 window.ccPickTimeline = (id) => { ccCreateData.timeline = id; ccCreateStep = 'identity'; renderCreateStep(); };
 window.ccPickIdentity = (type) => { ccCreateData.identityType = type; ccCreateStep = 'form'; renderCreateStep(); };
 window.ccCreateBack = () => {
+  // ★ 如果是修改模式，点“返回”直接关闭弹窗，返回主界面！
+  if (gameState.charCard && gameState.charCard.created) {
+    window.closeModal('modal-create');
+    return;
+  }
+  // 如果是首次建档，保留原有的退回逻辑
   if (ccCreateStep === 'form') ccCreateStep = 'identity';
   else if (ccCreateStep === 'identity') ccCreateStep = 'timeline';
   renderCreateStep();
@@ -2833,6 +2839,7 @@ window.ccConfirmCreate = () => {
   const c = gameState.charCard;
   const tl = TIMELINES.find(t => t.id === ccCreateData.timeline);
   const isStudent = ccCreateData.identityType === 'student';
+  const isEdit = c.created; // 记录修改前是否已经建过卡
 
   c.timeline = ccCreateData.timeline;
   c.identityType = ccCreateData.identityType;
@@ -2859,9 +2866,10 @@ window.ccConfirmCreate = () => {
     c.enrollYear = String(ey);
     c.gradYear = String(ey + 7);
     c.occupation = ''; c.rank = ''; c.workplace = ''; c.yearsWorked = ''; c.occupationDesc = '';
-    gameState.time = ey + '年9月1日 · 上午';
-    gameState.scene = '霍格沃茨特快列车';
-    if (!c.created) {
+    // ★ 核心修改：只有第一次建档才重置时间、地点和金币！
+    if (!isEdit) {
+      gameState.time = ey + '年9月1日 · 上午';
+      gameState.scene = '霍格沃茨特快列车';
       gameState.stats.galleons = c.blood === '纯血' ? 100 : (c.blood === '混血' ? 90 : 80);
     }
   } else {
@@ -2871,15 +2879,37 @@ window.ccConfirmCreate = () => {
     c.yearsWorked = $('cc-cr-yearsworked').value.trim();
     c.occupationDesc = $('cc-cr-occupationdesc').value.trim();
     c.enrollYear = ''; c.gradYear = '';
-    const by = parseInt(c.birthYear);
-    const midYear = Math.floor((tl.birthRange[0] + tl.birthRange[1]) / 2) + 22;
-    const year = by ? (by + 22) : midYear;
-    gameState.time = year + '年 · 上午';
-    gameState.scene = '对角巷';
-    if (!c.created) {
+    if (!isEdit) {
+      const by = parseInt(c.birthYear);
+      const midYear = Math.floor((tl.birthRange[0] + tl.birthRange[1]) / 2) + 22;
+      const year = by ? (by + 22) : midYear;
+      gameState.time = year + '年 · 上午';
+      gameState.scene = '对角巷';
       gameState.stats.galleons = 120;
     }
   }
+
+  c.created = true;
+  gameState.name = c.name;
+  gameState.house = c.house || '未分院';
+
+  LS.set('hp_state', gameState);
+  window.closeModal('modal-create');
+  
+  // ★ 核心修改：立刻刷新顶栏和侧边栏，让修改后的数据立刻显示出来！
+  window.renderStatus(); 
+  window.renderCharSidebar(); 
+
+  // ★ 核心修改：如果是修改档案，就不再发送开场白，而是弹个提示；如果是新建才发开场白。
+  if (isEdit) {
+    window.pushDisplay('system', '📝 角色档案已成功更新！');
+  } else {
+    const opening = isStudent
+      ? `（游戏开始）我的角色是 ${tl.name}（${tl.range}）的学生。请根据这个时代的具体背景，描述我收到录取通知书并前往霍格沃茨的情景作为开场。注意：绝对不许出现不属于这个时代的人或物！`
+      : `（游戏开始）我的角色是一名 ${c.occupation || '巫师'}（${tl.name}，${tl.range}）。请根据这个时代的具体背景，描述我日常生活的开场。注意：绝对不许出现不属于这个时代的人或物！`;
+    window.sendAction(opening);
+  }
+};
 
   c.created = true;
   gameState.name = c.name;
