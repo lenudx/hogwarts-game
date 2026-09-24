@@ -664,6 +664,12 @@ window.openModal = (id) => {
   $(id).classList.add('show'); 
 };
 window.closeModal = (id) => $(id).classList.remove('show');
+window.switchSettingsTab = (tabId) => {
+  document.querySelectorAll('.settings-tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.settings-tabs button[onclick*="${tabId}"]`).classList.add('active');
+  $(tabId).classList.add('active');
+};
 
 window.renderStatus = () => {
   const s = gameState;
