@@ -363,7 +363,6 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   <div class="msg-menu-box" onclick="event.stopPropagation()">
     <div class="msg-menu-title" id="msg-menu-title">◈ 消息操作</div>
     <button onclick="window.menuRegen()">🔁 再说一个（重新生成）</button>
-    <button onclick="window.resetGame()" class="danger">🔄 重新开局（保留 API）</button>
     <button onclick="window.menuEdit()">✏️ 修改内容</button>
     <button onclick="window.menuDelete()" class="danger">🗑 删除这条消息</button>
     <button onclick="window.hideMesMenu()" class="cancel">取消</button>
@@ -468,6 +467,7 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
         </div>
         <div class="field"><label>温度 (0~2)</label><input id="cfg-temp" type="number" step="0.1" min="0" max="2"></div>
         <button class="primary" style="width:100%;padding:10px" onclick="window.saveApiConfig()">保存当前 API 配置</button>
+        <button class="primary" style="width:100%;padding:10px;margin-top:10px;" onclick="window.resetGame()">🔄 重新开局（保留 API 和设置）</button>
         <button class="danger" style="width:100%;padding:8px;margin-top:10px;" onclick="window.resetAllData()">⚠ 数据本地缓存（如果卡死点这里）</button>
       </div>
       <!-- 世界书 -->
@@ -2870,11 +2870,28 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 // ==================== 重开与初始化 ====================
 window.resetGame = () => {
-  if(!confirm('确定要清空进度重新开始吗？')) return;
-  gameState = JSON.parse(JSON.stringify(DEFAULT_STATE)); history = []; displayHistory = [];
-  LS.set('hp_state', gameState); LS.set('hp_history', history); LS.set('hp_display', displayHistory);
-  window.renderStatus(); window.renderStory(); window.renderOptions([]);
-  window.sendAction('（游戏开始）请描述我收到霍格沃茨录取通知书、在国王十字车站穿过 9¾ 站台登上特快列车的情景，作为故事的开场。');
+  if(!confirm('确定要清空进度重新开始吗？（API、世界书、预设都将保留）')) return;
+  
+  // 1. 彻底重置游戏状态，但保留系统配置
+  gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  gameState.charCard = JSON.parse(JSON.stringify(DEFAULT_CHARCARD)); // 关键！必须重置人物卡，避免崩溃
+  history = []; displayHistory = [];
+  
+  // 2. 写入本地缓存
+  LS.set('hp_state', gameState);
+  LS.set('hp_history', history);
+  LS.set('hp_display', displayHistory);
+  
+  // 3. 关闭设置弹窗
+  window.closeModal('modal-settings');
+  
+  // 4. 刷新界面，清空剧情
+  window.renderStatus(); 
+  window.renderStory(); 
+  window.renderOptions([]);
+  
+  // 5. 直接弹出建档案的界面，而不是发消息（发消息会因为没有角色而卡死！）
+  window.openCreateModal();
 };
 
 window.addEventListener('DOMContentLoaded', () => {
