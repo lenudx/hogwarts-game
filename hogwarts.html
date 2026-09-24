@@ -588,7 +588,7 @@ const DEFAULT_WORLDBOOKS = [{
 const DEFAULT_PRESETS = [{
   id: 'p_default', name: '霍格沃茨 GM（默认）', temperature: 0.9,
   prompts: [
-    { id: uid(), name: '世界观设定', enabled: true, content: '时间：1991 年，哈利·波特与同届新生入学的那一年。玩家是一名刚收到录取通知书的十一岁新生。严格遵循原著设定，不出现现代科技、网络梗、打破第四面墙的内容。', role: 'system' },
+    { id: uid(), name: '世界观设定', enabled: true, content: '严格遵循玩家设定的时代背景与身份。玩家是一名巫师，请根据玩家所选的“时间线”来描述其生活。不出现现代科技、网络梗、打破第四面墙的内容。', role: 'system' },
     { id: uid(), name: '主持原则', enabled: true, content: '1. 用第二人称「你」叙述，沉浸式、有画面感。\n2. 每次只推进一小段剧情，绝不替玩家做决定。\n3. 玩家做出违背设定的行动时，让世界给出合理反馈（失败、扣分、被训斥）。\n4. NPC 台词与反应要符合原著性格。', role: 'system' },
     { id: uid(), name: '状态注入', enabled: true, content: '当前游戏状态：\n{{state}}\n\n相关设定（世界书）：\n{{worldbook}}', role: 'system' },
     { id: uid(), name: '输出格式', enabled: true, content: '你必须只输出一个合法的 JSON 对象，不要输出任何其他文字，不要用 markdown 代码块包裹。\n格式如下：\n{\n  "narration": "剧情叙述正文，第二人称，200~400字，可包含 NPC 对话",\n  "state_changes": { "mana": -5, "stamina": -3, "galleons": -7, "scene": "霍格沃茨特快列车 · 车厢内", "time": "1991年9月1日 · 中午", "inventory_add": ["巧克力蛙"], "inventory_remove": [], "relations": {"罗恩·韦斯莱": 5}, "flags": {"已认识罗恩": true}, "actors": ["罗恩·韦斯莱", "你"] },\n  "options": ["观察窗外的风景", "问罗恩关于魁地奇的事", "拿出课本预习"]\n}\n说明：\n- state_changes 所有字段均可选，没变化就省略；数值字段表示「增量」，正数为增加。\n- 可用的数值字段：mana、stamina、galleons、maxMana、maxStamina。\n- 可用的字符串字段：scene、time、house、name。\n- actors 为当前场景的在场人物列表（包含玩家自己，如 "你"）。\n- options 提供 2~4 个符合当前情境的短期行动建议，每条不超过 15 字。', role: 'system' }
@@ -1952,6 +1952,11 @@ function formatState() {
 function buildSystemPrompt(extra='') {
   const preset = presets.find(p => p.id === activePresetId) || presets[0];
   let finalPrompt = '';
+  
+  // ★ 核心动态注入：把玩家选的时代和身份，强制塞给 AI ★
+  const tl = TIMELINES.find(t => t.id === (gameState.charCard.timeline || 'child')) || TIMELINES[4];
+  const identityStr = gameState.charCard.identityType === 'student' ? '学生' : '成年人';
+  finalPrompt += `【极其重要，必须遵守】当前玩家的时代是：${tl.name}。当前玩家的身份是：${identityStr}。请严格以此背景进行叙述，严禁提及与当前时代不符的内容。\n\n`;
   if(preset && preset.prompts) {
     preset.prompts.forEach(entry => {
       if (!entry.enabled) return;
