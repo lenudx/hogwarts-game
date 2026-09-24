@@ -663,6 +663,7 @@ window.openModal = (id) => {
   }
   $(id).classList.add('show'); 
 };
+window.closeModal = (id) => $(id).classList.remove('show');
 
 window.renderStatus = () => {
   const s = gameState;
