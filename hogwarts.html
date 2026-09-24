@@ -2866,7 +2866,7 @@ window.ccConfirmCreate = () => {
     c.enrollYear = String(ey);
     c.gradYear = String(ey + 7);
     c.occupation = ''; c.rank = ''; c.workplace = ''; c.yearsWorked = ''; c.occupationDesc = '';
-    // ★ 核心修改：只有第一次建档才重置时间、地点和金币！
+    // ★ 核心：只有第一次建档才重置时间、地点和金币！
     if (!isEdit) {
       gameState.time = ey + '年9月1日 · 上午';
       gameState.scene = '霍格沃茨特快列车';
@@ -2896,11 +2896,11 @@ window.ccConfirmCreate = () => {
   LS.set('hp_state', gameState);
   window.closeModal('modal-create');
   
-  // ★ 核心修改：立刻刷新顶栏和侧边栏，让修改后的数据立刻显示出来！
+  // ★ 核心：立刻刷新顶栏和侧边栏，让修改后的数据立刻显示出来！
   window.renderStatus(); 
   window.renderCharSidebar(); 
 
-  // ★ 核心修改：如果是修改档案，就不再发送开场白，而是弹个提示；如果是新建才发开场白。
+  // ★ 核心：如果是修改档案，就不再发送开场白，而是弹个提示；如果是新建才发开场白。
   if (isEdit) {
     window.pushDisplay('system', '📝 角色档案已成功更新！');
   } else {
@@ -2909,21 +2909,6 @@ window.ccConfirmCreate = () => {
       : `（游戏开始）我的角色是一名 ${c.occupation || '巫师'}（${tl.name}，${tl.range}）。请根据这个时代的具体背景，描述我日常生活的开场。注意：绝对不许出现不属于这个时代的人或物！`;
     window.sendAction(opening);
   }
-};
-
-  c.created = true;
-  gameState.name = c.name;
-  gameState.house = c.house || '未分院';
-
-  LS.set('hp_state', gameState);
-  window.closeModal('modal-create');
-  window.renderStatus();
-
-  const opening = isStudent
-    ? `（游戏开始）我的角色是 ${tl.name}（${tl.range}）的学生。请根据这个时代的具体背景，描述我收到录取通知书并前往霍格沃茨的情景作为开场。注意：绝对不许出现不属于这个时代的人或物！`
-    : `（游戏开始）我的角色是一名 ${c.occupation || '巫师'}（${tl.name}，${tl.range}）。请根据这个时代的具体背景，描述我日常生活的开场。注意：绝对不许出现不属于这个时代的人或物！`;
-
-  window.sendAction(opening);
 };
 
 // 创建隐藏的文件上传 input（用于侧栏头像）
