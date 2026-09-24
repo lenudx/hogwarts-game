@@ -824,11 +824,23 @@ window.renderStatus = () => {
     if (timeMatch) timeStr = timeMatch[1].trim();
     else timeStr = s.time.replace(/^\d{4}年\d+月\d+日\s*·?\s*/, '') || s.time;
   }
-  $('ui-header-year').textContent = yearStr;
-  $('ui-header-time').textContent = timeStr;
-  $('ui-header-scene').textContent = s.scene || '未知';
-  let actors = s.actors || ['你']; if (!Array.isArray(actors)) actors = [actors];
-  $('ui-header-actors').textContent = actors.join('、');
+
+  // ★ 核心修复：加入 if 判断，元素不存在时跳过，防止报错
+  const elYear = $('ui-header-year');
+  if (elYear) elYear.textContent = yearStr;
+  
+  const elTime = $('ui-header-time');
+  if (elTime) elTime.textContent = timeStr;
+  
+  const elScene = $('ui-header-scene');
+  if (elScene) elScene.textContent = s.scene || '未知';
+  
+  let actors = s.actors || ['你']; 
+  if (!Array.isArray(actors)) actors = [actors];
+  
+  const elActors = $('ui-header-actors');
+  if (elActors) elActors.textContent = actors.join('、');
+
   window.renderCharSidebar();
 };
 
@@ -3163,7 +3175,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // 全局错误拦截，防止手机端白屏卡死无提示
 window.onerror = function(msg, url, line, col, error) {
-  alert("发生错误: " + msg + "\\n行号: " + line);
+  // 把 alert 改成 console.error，只在后台默默记录，不再弹窗卡死页面
+  console.error("发生错误: " + msg + "\n行号: " + line);
   return false;
 };
 </script>
