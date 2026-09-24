@@ -636,9 +636,24 @@ if (Array.isArray(displayHistory)) {
 // ==================== 界面渲染 ====================
 window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
 window.openModal = (id) => { 
-if(id === 'modal-shop') { renderShop(); }
-if(id === 'modal-map') { renderMap(); }
-if(id === 'modal-reputation') { renderReputation(); }
+  if(id === 'modal-shop') { 
+    if (!gameState.shops || !gameState.shops.honeydukes) {
+      gameState.shops = {};
+      gameState.shopRefreshCount = 5;
+      gameState.lastShopRefreshDate = '';
+      SHOP_DATA.forEach(s => { gameState.shops[s.key] = JSON.parse(JSON.stringify(s.items)); });
+      LS.set('hp_state', gameState);
+    }
+    renderShop(); 
+  }
+  if(id === 'modal-map') { renderMap(); }
+  if(id === 'modal-reputation') { 
+    if (!gameState.houseCup) {
+      gameState.houseCup = { gryffindor: 0, slytherin: 0, ravenclaw: 0, hufflepuff: 0, ourHouse: '', champion: '', buffs: [], reputation: { good: 0, evil: 0 } };
+      LS.set('hp_state', gameState);
+    }
+    renderReputation(); 
+  }
   if(id === 'modal-settings') {
     renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
     renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI(); renderSaveList();
@@ -647,13 +662,6 @@ if(id === 'modal-reputation') { renderReputation(); }
     renderForum();
   }
   $(id).classList.add('show'); 
-};
-window.closeModal = (id) => $(id).classList.remove('show');
-window.switchSettingsTab = (tabId) => {
-  document.querySelectorAll('.settings-tabs button').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  document.querySelector(`.settings-tabs button[onclick*="${tabId}"]`).classList.add('active');
-  $(tabId).classList.add('active');
 };
 
 window.renderStatus = () => {
@@ -2477,9 +2485,16 @@ let ccCreateStep = 'timeline';
 let ccCreateData = {};
 
 window.openCreateModal = () => {
-  ccCreateStep = 'timeline';
   ccCreateData = {};
-  $('cc-create-title').textContent = '📝 建立档案';
+  if (gameState.charCard && gameState.charCard.created) {
+    // 如果已经建过卡，直接进入表单，跳过选时代
+    ccCreateData.timeline = gameState.charCard.timeline || 'child';
+    ccCreateData.identityType = gameState.charCard.identityType || 'student';
+    ccCreateStep = 'form';
+  } else {
+    ccCreateStep = 'timeline';
+  }
+  $('cc-create-title').textContent = '📝 建立/修改档案';
   renderCreateStep();
   window.openModal('modal-create');
 };
@@ -2530,14 +2545,14 @@ function renderCreateStep(){
   const tl = TIMELINES.find(t => t.id === ccCreateData.timeline);
   const isStudent = ccCreateData.identityType === 'student';
   const birthHint = `建议 ${tl.birthRange[0]}—${tl.birthRange[1]}`;
-  const c = gameState.charCard; // 读取当前角色数据用于回显
+  const c = gameState.charCard || {}; // 读取当前数据用于回显
     box.innerHTML = `
       <div style="font-size:11px;color:var(--accent-cyan);margin-bottom:10px;">
         ${tl.name} · ${isStudent ? '学生' : '成年人'}
       </div>
 
-      <div class="field"><label>姓名</label><input id="cc-cr-name" placeholder="中文名"></div>
-      <div class="field"><label>性别</label><input id="cc-cr-en" placeholder="男 / 女 / 其他"></div>
+      <div class="field"><label>姓名</label><input id="cc-cr-name" placeholder="中文名" value="${esc(c.name || '')}">
+      <div class="field"><label>性别</label><input id="cc-cr-en" placeholder="男 / 女 / 其他" value="${esc(c.gender || '')}">
 
       <div class="field" style="display:flex;gap:6px;">
         <div style="flex:1;"><label>学院</label><select id="cc-cr-house" style="width:100%;">
@@ -2551,32 +2566,31 @@ function renderCreateStep(){
       
 
       <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>发色</label><input id="cc-cr-hair" placeholder="黑 / 金"></div>
-        <div style="flex:1;"><label>瞳色</label><input id="cc-cr-eye" placeholder="灰蓝 / 绿"></div>
+        <div style="flex:1;"><label>发色</label><input id="cc-cr-hair" placeholder="黑 / 金" value="${esc(c.hair || '')}">
+        <div style="flex:1;"><label>瞳色</label><input id="cc-cr-eye" placeholder="灰蓝 / 绿" value="${esc(c.eye || '')}">
       </div>
 
       <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>出生年份（${birthHint}）</label><input id="cc-cr-birthyear" type="number" placeholder="${tl.birthRange[0]}"></div>
-        <div style="flex:1;"><label>生日（月-日）</label><input id="cc-cr-birthday" placeholder="03-15"></div>
+        <div style="flex:1;"><label>出生年份（${birthHint}）</label>：<input id="cc-cr-birthyear" type="number" placeholder="${tl.birthRange[0]}" value="${esc(c.birthYear || '')}">
+        <div style="flex:1;"><label>生日（月-日）</label><input id="cc-cr-birthday" placeholder="03-15" value="${esc(c.birthday || '')}">
       </div>
 
       <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>守护神</label><input id="cc-cr-patronus" placeholder="牝鹿"></div>
-        <div style="flex:1;"><label>宠物</label><input id="cc-cr-pet" placeholder="可空"></div>
+        <div style="flex:1;"><label>守护神</label><input id="cc-cr-patronus" placeholder="牝鹿" value="${esc(c.patronus || '')}">
+        <div style="flex:1;"><label>宠物</label><input id="cc-cr-pet" placeholder="可空" value="${esc(c.pet || '')}">
       </div>
 
-      <div class="field"><label>魔杖（杖身 / 杖芯 / 长度 / 柔韧度）</label><input id="cc-cr-wand" placeholder="冬青木 / 凤凰尾羽 / 11英寸 / 柔韧"></div>
-
+      <div class="field"><label>魔杖（杖身 / 杖芯 / 长度 / 柔韧度）</label><input id="cc-cr-wand" placeholder="冬青木 / 凤凰尾羽 / 11英寸 / 柔韧" value="${esc(c.wand || '')}">
       <div class="field" style="display:flex;gap:6px;">
-        <div style="flex:1;"><label>MBTI</label><input id="cc-cr-mbti" placeholder="INTJ"></div>
-        <div style="flex:1;"><label>星座</label><input id="cc-cr-zodiac" placeholder="双鱼座"></div>
+        <div style="flex:1;"><label>MBTI</label><input id="cc-cr-mbti" placeholder="INTJ" value="${esc(c.mbti || '')}">
+        <div style="flex:1;"><label>星座</label><input id="cc-cr-zodiac" placeholder="双鱼座" value="${esc(c.zodiac || '')}">
       </div>
 
-      <div class="field"><label>身高（毕业后）</label><input id="cc-cr-height" placeholder="175cm"></div>
-      <div class="field"><label>外貌</label><textarea id="cc-cr-appearance" rows="2" placeholder="发色、瞳色、体态、特殊特征"></textarea></div>
+      <div class="field"><label>身高（毕业后）</label><input id="cc-cr-height" placeholder="175cm" value="${esc(c.height || '')}">
+      <div class="field"><label>外貌</label><textarea id="cc-cr-appearance" rows="2" placeholder="发色、瞳色、体态、特殊特征">${esc(c.appearance || '')}</textarea>
 
       ${isStudent ? `
-        <div class="field"><label>入学年份（不填按 11 岁入学推算）</label><input id="cc-cr-enroll" type="number" placeholder="${tl.birthRange[0]+11}"></div>
+        <div class="field"><label>入学年份（不填按 11 岁入学推算）</label><input id="cc-cr-enroll" type="number" placeholder="${tl.birthRange[0]+11}" value="${esc(c.enrollYear || '')}">
       ` : `
         <div class="field"><label>职业</label>
           <select id="cc-cr-occupation" style="width:100%;">
@@ -2839,7 +2853,9 @@ window.ccConfirmCreate = () => {
     c.occupation = ''; c.rank = ''; c.workplace = ''; c.yearsWorked = ''; c.occupationDesc = '';
     gameState.time = ey + '年9月1日 · 上午';
     gameState.scene = '霍格沃茨特快列车';
-    gameState.stats.galleons = c.blood === '纯血' ? 100 : (c.blood === '混血' ? 90 : 80);
+   if (!c.created) { // 仅在首次建卡时给初始金币，修改时保留原金币
+  gameState.stats.galleons = c.blood === '纯血' ? 100 : (c.blood === '混血' ? 90 : 80);
+}
   } else {
     c.occupation = $('cc-cr-occupation').value || '';
     c.rank = $('cc-cr-rank').value.trim();
@@ -2852,7 +2868,9 @@ window.ccConfirmCreate = () => {
     const year = by ? (by + 22) : midYear;
     gameState.time = year + '年 · 上午';
     gameState.scene = '对角巷';
-    gameState.stats.galleons = 120;
+    if (!c.created) {
+  gameState.stats.galleons = 120;
+}
   }
 
   c.created = true;
@@ -2891,7 +2909,7 @@ window.resetGame = () => {
   gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
   gameState.charCard = JSON.parse(JSON.stringify(DEFAULT_CHARCARD));
   
-  // 2. 关键修复：重新开局必须强制分配商店和学院杯！
+  // 2. 关键修复：强制重新生成商店和学院杯，防止报错！
   gameState.shops = {};
   gameState.shopRefreshCount = 5;
   gameState.lastShopRefreshDate = '';
