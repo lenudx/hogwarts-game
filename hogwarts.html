@@ -568,7 +568,7 @@ const LS = { get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.
 // ==================== 默认数据 ====================
 const DEFAULT_STATE = {
   name: '你', house: '未分院', year: 1, scene: '霍格沃茨特快列车', time: '1991年9月1日 · 上午',
-  stats: { mana: 100, maxMana: 100, stamina: 100, maxStamina: 100, galleons: 12, sickles: 0, knuts: 0, lastGalleons: 0, lastSickles: 0, lastKnuts: 0, outfit: '', mood: '' },
+  stats: { mana: 100, maxMana: 100, stamina: 100, maxStamina: 100, charm: 10, agility: 10, social: 10, intellect: 10, galleons: 12, sickles: 0, knuts: 0, lastGalleons: 0, lastSickles: 0, lastKnuts: 0, outfit: '', mood: '' },
   inventory: ['校服', '课本'], relations: {}, flags: {}, actors: ['你']
 };
 
@@ -1567,8 +1567,43 @@ window.enterDungeon = (name) => {
   const loc = MAP_LOCATIONS.find(l => l.name === name);
   if (!loc) return;
 
+  // ★ 核心：属性判定机制
+  const st = gameState.stats;
+  let requiredAgi = loc.danger * 2;
+  let requiredInt = loc.danger * 1.5;
+  let requiredSoc = loc.danger * 1.5;
+
+  // 探索率计算：属性越高，成功率越高（满属性100%成功）
+  let successRate = 100;
+  if ((st.agility || 10) < requiredAgi) successRate -= 30;
+  if ((st.intellect || 10) < requiredInt) successRate -= 20;
+  if ((st.social || 10) < requiredSoc) successRate -= 20;
+  if (successRate < 10) successRate = 10; // 最低保底10%
+
+  let isSuccess = Math.random() * 100 < successRate;
+
+  if (!isSuccess) {
+    // 探索失败判定
+    window.pushDisplay('system', `⚠️ 探索失败！你的能力不足以应对【${loc.name}】的危险。`);
+    st.stamina = Math.max(0, st.stamina - 10);
+    LS.set('hp_state', gameState);
+    window.renderStatus();
+    window.closeModal('modal-map');
+    window.pushDisplay('system', `体力 -10，探索中断。`);
+    return;
+  }
+
   window.closeModal('modal-map');
   dungeonState = { active: true, location: name, round: 0, log: [] };
+
+  // ★ 特殊掉落预留（你以后想好了再往里面加）
+  if (loc.specialItem) {
+    window.pushDisplay('system', `✨ 探索发现：你在【${loc.name}】找到了隐藏的【${loc.specialItem}】！`);
+    if (!gameState.inventory.includes(loc.specialItem)) {
+      gameState.inventory.push(loc.specialItem);
+      LS.set('hp_state', gameState);
+    }
+  }
   
   // 夜游扣分
   const timeStr = gameState.time || '';
@@ -2809,10 +2844,14 @@ window.renderCharSidebar = () => {
       <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>💗 状态</h4><span class="arrow">▶</span></div>
       <div class="cc-sec-body">
         <div class="bar-row"><div class="bar-label"><span>魔力</span><span>${Math.round(st.mana)}/${st.maxMana}</span></div><div class="bar mana"><i style="width:${clamp(st.mana/st.maxMana*100,0,100)}%"></i></div></div>
-        <div class="bar-row"><div class="bar-label"><span>体力</span><span>${Math.round(st.stamina)}/${st.maxStamina}</span></div><div class="bar stam"><i style="width:${clamp(st.stamina/st.maxStamina*100,0,100)}%"></i></div></div>
-        ${row('衣着', st.outfit)}
-        ${row('心情', st.mood)}
-        ${wealthHtml}
+<div class="bar-row"><div class="bar-label"><span>体力</span><span>${Math.round(st.stamina)}/${st.maxStamina}</span></div><div class="bar stam"><i style="width:${clamp(st.stamina/st.maxStamina*100,0,100)}%"></i></div></div>
+${row('魅力', st.charm || 10)}
+${row('敏捷', st.agility || 10)}
+${row('社交力', st.social || 10)}
+${row('思维力', st.intellect || 10)}
+${row('衣着', st.outfit)}
+${row('心情', st.mood)}
+${wealthHtml}
       </div>
     </div>
 
