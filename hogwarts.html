@@ -336,11 +336,12 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     <button class="only-mobile" onclick="window.openModal('modal-reputation')" title="学院风评">🏆</button>
     <button class="only-mobile" onclick="window.openModal('modal-map')" title="活点地图">🗺️</button>
   </div>
-  <div class="header-info">
-    <div class="h-line"><span class="h-label">年份</span><span id="ui-header-year">2000年</span> <span style="color:#4c5e7d;">|</span> <span class="h-label">时间</span><span id="ui-header-time">上午</span></div>
-    <div class="h-line"><span class="h-label">地点</span><span class="h-scene" id="ui-header-scene" style="color:var(--accent-cyan);">霍格沃茨特快列车</span></div>
-    <div class="h-line"><span class="h-label">在场</span><span class="h-actors" id="ui-header-actors">你</span></div>
-  </div>
+<div class="header-info" style="display:flex; justify-content:center; align-items:center;">
+  <button class="primary" style="padding:8px 24px; border-radius:20px; font-size:14px; display:flex; align-items:center; gap:8px;" onclick="window.openModal('modal-pet')">
+    🐾 我的宠物
+  </button>
+</div>
+<div class="header-right"><button onclick="window.openModal('modal-settings')">⚙</button></div>
   <div class="header-right"><button onclick="window.openModal('modal-settings')">⚙</button></div>
 </header>
 
@@ -433,6 +434,15 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       <div id="map-tabs" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; justify-content:center;"></div>
       <div id="map-locations" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
     </div>
+  </div>
+</div>
+<div class="modal" id="modal-pet">
+  <div class="modal-box" style="max-width:560px; background:#111a2e; border:1px solid var(--border-glow);">
+    <div class="modal-head">
+      <h3 style="color:var(--accent-cyan); font-family:'Cinzel',serif;">🐾 宠物养成</h3>
+      <button onclick="window.closeModal('modal-pet')">关闭</button>
+    </div>
+    <div class="modal-body" id="pet-body" style="padding:20px; text-align:center;"></div>
   </div>
 </div>
 <div class="modal" id="modal-settings">
@@ -621,6 +631,9 @@ if (!Array.isArray(presets) || presets.length === 0) presets = DEFAULT_PRESETS;
 if (!presets[0].prompts) presets = DEFAULT_PRESETS; // 兼容旧存档：把 text 转成 versions 数组
 if (!Array.isArray(gameState.achievements)) gameState.achievements = [];
 if (!Array.isArray(gameState.forum)) gameState.forum = [];
+if (!gameState.pet) {
+  gameState.pet = { name: '未命名宠物', type: '猫头鹰', image: '', affinity: 50, hunger: 100, cleanliness: 100 };
+}
 if (!gameState.shops) gameState.shops = { knockturn: [], tavern: [] };
 if (!gameState.houseCup) gameState.houseCup = { gryffindor: 0, slytherin: 0, ravenclaw: 0, hufflepuff: 0, ourHouse: '', champion: '', buffs: [], reputation: { good: 0, evil: 0 } };
 if (Array.isArray(displayHistory)) {
@@ -633,6 +646,117 @@ if (Array.isArray(displayHistory)) {
   });
 }
 
+// ==================== 宠物系统 ====================
+if (!gameState.pet) {
+  gameState.pet = {
+    name: '未命名宠物',
+    type: '猫头鹰',
+    image: '', // 图片base64
+    affinity: 50, // 好感度 0-100
+    hunger: 100,  // 饱食度 0-100
+    cleanliness: 100 // 清洁度 0-100
+  };
+  LS.set('hp_state', gameState);
+}
+
+window.renderPet = () => {
+  const box = $('pet-body');
+  if (!box) return;
+  const p = gameState.pet;
+
+  const avatarHtml = p.image
+    ? `<img src="${p.image}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid var(--accent-blue); margin-bottom:10px;">`
+    : `<div style="width:120px; height:120px; border-radius:50%; border:3px dashed var(--accent-blue); display:inline-flex; align-items:center; justify-content:center; font-size:40px; margin-bottom:10px;">${p.type === '猫头鹰' ? '🦉' : (p.type === '猫' ? '🐱' : (p.type === '蟾蜍' ? '🐸' : '🐍'))}</div>`;
+
+  box.innerHTML = `
+    ${avatarHtml}
+    <div style="margin-bottom:12px;">
+      <button class="primary" style="padding:6px 12px; font-size:11px;" onclick="document.getElementById('pet-photo-input').click()">📷 上传宠物照片</button>
+      <input type="file" id="pet-photo-input" accept="image/*" style="display:none;" onchange="window.uploadPetPhoto(event)">
+    </div>
+    <div style="font-size:16px; font-weight:600; color:var(--accent-cyan); margin-bottom:4px;">${esc(p.name)}</div>
+    <div style="font-size:12px; color:var(--text-dim); margin-bottom:16px;">种类：${esc(p.type)}</div>
+
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px; text-align:left;">
+      <div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim);"><span>好感度</span><span>${Math.round(p.affinity)}/100</span></div>
+        <div class="bar" style="background:rgba(255,255,255,0.1);"><i style="width:${p.affinity}%; background:linear-gradient(90deg, #ff7e5f, #feb47b);"></i></div>
+      </div>
+      <div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim);"><span>饱食度</span><span>${Math.round(p.hunger)}/100</span></div>
+        <div class="bar" style="background:rgba(255,255,255,0.1);"><i style="width:${p.hunger}%; background:linear-gradient(90deg, #4a9d7a, #7ae0b4);"></i></div>
+      </div>
+      <div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim);"><span>清洁度</span><span>${Math.round(p.cleanliness)}/100</span></div>
+        <div class="bar" style="background:rgba(255,255,255,0.1);"><i style="width:${p.cleanliness}%; background:linear-gradient(90deg, #5c9cff, #9ec8ff);"></i></div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+      <button class="primary" style="padding:12px; font-size:12px;" onclick="window.feedPet()">🍖 喂食</button>
+      <button class="primary" style="padding:12px; font-size:12px;" onclick="window.petPet()">🤚 抚摸</button>
+      <button class="primary" style="padding:12px; font-size:12px;" onclick="window.cleanPet()">🛁 清洁</button>
+    </div>
+    <div style="margin-top:16px; font-size:11px; color:var(--text-faint); line-height:1.6;">
+      ▸ 随着好感度提升，宠物会解锁更多互动动作。<br>
+      ▸ 在下方商店购买宠物幼崽，可以收养新的宠物。
+    </div>
+  `;
+};
+
+window.uploadPetPhoto = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    gameState.pet.image = e.target.result;
+    LS.set('hp_state', gameState);
+    window.renderPet();
+  };
+  reader.readAsDataURL(file);
+};
+
+window.feedPet = () => {
+  const p = gameState.pet;
+  const favFoods = ['蜂蜜公爵经典糖果袋', '巧克力蛙', '黄油啤酒', '巧克力'];
+  const inventory = gameState.inventory;
+  let foundFood = null;
+  for (let f of favFoods) {
+    if (inventory.includes(f)) { foundFood = f; break; }
+  }
+  if (!foundFood) return alert('你背包里没有合适的食物，去商店买点吧！');
+  
+  gameState.inventory = inventory.filter(x => x !== foundFood);
+  if (p.affinity >= 80) {
+    p.affinity = Math.min(100, p.affinity + 5);
+    p.hunger = Math.min(100, p.hunger + 20);
+    window.pushDisplay('system', `🍖 你喂了宠物【${foundFood}】，它非常喜欢！好感 +5，饱食度 +20`);
+  } else {
+    p.affinity = Math.min(100, p.affinity + 2);
+    p.hunger = Math.min(100, p.hunger + 15);
+    window.pushDisplay('system', `🍖 你喂了宠物【${foundFood}】，它吃得还不错。好感 +2，饱食度 +15`);
+  }
+  LS.set('hp_state', gameState);
+  window.renderPet(); window.renderStatus();
+};
+
+window.petPet = () => {
+  const p = gameState.pet;
+  p.affinity = Math.min(100, p.affinity + 3);
+  p.cleanliness = Math.max(0, p.cleanliness - 2);
+  window.pushDisplay('system', `🤚 你抚摸了宠物，它蹭了蹭你。好感 +3，清洁度 -2`);
+  LS.set('hp_state', gameState);
+  window.renderPet(); window.renderStatus();
+};
+
+window.cleanPet = () => {
+  const p = gameState.pet;
+  p.cleanliness = Math.min(100, p.cleanliness + 30);
+  p.affinity = Math.max(0, p.affinity - 1); // 有些宠物不喜欢洗澡
+  window.pushDisplay('system', `🛁 你给宠物洗了澡。清洁度 +30，好感 -1`);
+  LS.set('hp_state', gameState);
+  window.renderPet(); window.renderStatus();
+};
 // ==================== 界面渲染 ====================
 window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
 window.openModal = (id) => { 
@@ -658,6 +782,7 @@ window.openModal = (id) => {
     renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
     renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI(); renderSaveList();
   }
+  if(id === 'modal-pet') { renderPet(); }
   if(id === 'modal-forum') {
     renderForum();
   }
@@ -1193,13 +1318,9 @@ const SHOP_DATA = [
     { name: '球队徽章/海报', desc: '支持你的队伍，别在对手休息室乱戴。', price: 1, priceText: '1G' }
   ]},
   { shop: '神奇动物园', key: 'menagerie', items: [
-    { name: '猫头鹰', desc: '送信可靠，但需要喂食和清理。', price: 10, priceText: '10G' },
-    { name: '魔法生物玩偶（月痴兽）', desc: '软毛，会轻微发光。', price: 1, priceText: '1G' },
-    { name: '魔法生物玩偶（护树罗锅）', desc: '软毛，会黏人。', price: 2, priceText: '2G' },
-    { name: '龙蛋模型', desc: '会发热，但不会孵化，安全。', price: 8, priceText: '8G' },
-    { name: '米布米宝', desc: '会喷臭汁，请勿对老师使用。', price: 2, priceText: '2G' },
-    { name: '神奇动物饲料', desc: '通用型，但龙和猫头鹰不通用。', price: 0.29, priceText: '5S' },
-    { name: '龙皮护具', desc: '驯龙或高危工作用，防火防咬。', price: 15, priceText: '15G' }
+  { name: '宠物幼崽（猫头鹰）', desc: '一只小小的猫头鹰幼崽，眼睛圆滚滚的。', price: 50, priceText: '50G', type: 'pet', petType: '猫头鹰' },
+  { name: '宠物幼崽（猫）', desc: '一只调皮的猫幼崽，喜欢蹭你的腿。', price: 40, priceText: '40G', type: 'pet', petType: '猫' },
+  { name: '宠物幼崽（蟾蜍）', desc: '一只呆萌的蟾蜍幼崽，安静地趴在角落。', price: 20, priceText: '20G', type: 'pet', petType: '蟾蜍' },
   ]},
   { shop: '斯拉格与吉格斯药房', key: 'apothecary', items: [
     { name: '标准魔药材料包', desc: '含蛇牙、干荨麻、月长石粉等基础材料。', price: 3, priceText: '3G' },
@@ -1302,6 +1423,17 @@ window.buyItem = (shopKey, itemName) => {
   if (gameState.stats.galleons < item.price) return alert('加隆不够！');
   
   gameState.stats.galleons -= item.price;
+  if (item.type === 'pet') {
+  gameState.pet = {
+    name: '新宠物',
+    type: item.petType,
+    image: '',
+    affinity: 50,
+    hunger: 100,
+    cleanliness: 100
+  };
+  window.pushDisplay('system', `🐣 恭喜！你获得了一只【${item.petType}】幼崽，快去宠物界面看看吧！`);
+}
   gameState.inventory.push(item.name);
   gameState.shops[shopKey] = items.filter(x => x.name !== itemName);
   
