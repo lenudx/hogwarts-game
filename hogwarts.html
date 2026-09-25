@@ -385,13 +385,13 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   </main>
 </div>
 <div class="msg-menu-overlay" id="msg-menu-overlay" onclick="if(event.target===this) window.hideMesMenu()">
-  <div class="msg-menu-box" onclick="event.stopPropagation()">
-  <div class="msg-menu-title" id="msg-menu-title">◈ 消息操作</div>
-  <button id="menu-btn-regen" onclick="window.menuRegen()">🔁 再说一个（重新生成）</button>
-  <button id="menu-btn-edit" onclick="window.menuEdit()">✏️ 修改内容</button>
-  <button onclick="window.menuDelete()" class="danger">🗑 删除这条消息</button>
-  <button onclick="window.hideMesMenu()" class="cancel" type="button">取消</button>
-</div>
+  <div class="msg-menu-box" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()">
+    <div class="msg-menu-title" id="msg-menu-title">◈ 消息操作</div>
+    <button id="menu-btn-regen" onclick="window.menuRegen()">🔁 再说一个（重新生成）</button>
+    <button id="menu-btn-edit" onclick="window.menuEdit()">✏️ 修改内容</button>
+    <button onclick="window.menuDelete()" class="danger">🗑 删除这条消息</button>
+    <button onclick="window.hideMesMenu()" class="cancel" type="button">取消</button>
+  </div>
 </div>
 <div id="intro-anim">
   <button id="intro-skip" onclick="window.skipIntroAnim()">跳过 ↦</button>
@@ -1039,18 +1039,17 @@ window.showMesMenu = (idx) => {
 // 删除
 window.menuDelete = () => {
   const idx = menuTargetIdx;
-  window.hideMesMenu();
   if (idx < 0 || !displayHistory[idx]) return;
   if (!confirm('删除这条消息？')) return;
   displayHistory.splice(idx, 1);
   LS.set('hp_display', displayHistory);
   window.renderStory();
+  window.hideMesMenu(); // 操作完再关闭
 };
 
 // 修改
 window.menuEdit = () => {
   const idx = menuTargetIdx;
-  window.hideMesMenu();
   if (idx < 0 || !displayHistory[idx]) return;
   const m = displayHistory[idx];
   ensureVersions(m);
@@ -1061,19 +1060,22 @@ window.menuEdit = () => {
   m.versions[m.activeVersion] = newText;
   LS.set('hp_display', displayHistory);
   window.renderStory();
+  window.hideMesMenu(); // 操作完再关闭
 };
 
 // 再说一个（重新生成）
 window.menuRegen = async () => {
   const idx = menuTargetIdx;
-  window.hideMesMenu();
   if (idx < 0 || !displayHistory[idx]) return;
   const m = displayHistory[idx];
   if (m.role !== 'assistant') {
     alert('只能对 AI 叙事的回复重新生成。');
     return;
   }
+  
+  // ★ 核心修复：先拿到要重新生成的消息，再关闭菜单，防止 idx 被清空
   ensureVersions(m);
+  window.hideMesMenu(); // 确认安全后再关闭菜单
 
   // 找到上一条用户消息
   let playerIdx = idx - 1;
@@ -1103,18 +1105,18 @@ window.menuRegen = async () => {
         { role: 'user', content: `【重新生成】最近剧情：\n${context}\n\n玩家行动：${playerText}\n\n请给出与之前不同的描写角度或情节走向。` }
       ];
       const controller = new AbortController();
-const timeoutId = setTimeout(() => controller.abort(), 45000);
-const res = await fetch(apiProfile.url, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
-  body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature }),
-  signal: controller.signal
-});
-clearTimeout(timeoutId);
-if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-const json = await res.json();
-raw = json?.choices?.[0]?.message?.content;
-if (!raw) throw new Error('接口返回格式异常');
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
+      const res = await fetch(apiProfile.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiProfile.key },
+        body: JSON.stringify({ model: apiProfile.model, messages, temperature: apiProfile.temperature }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const json = await res.json();
+      raw = json?.choices?.[0]?.message?.content;
+      if (!raw) throw new Error('接口返回格式异常');
     }
 
     window.hideLoading();
@@ -1122,23 +1124,22 @@ if (!raw) throw new Error('接口返回格式异常');
     const a = s.indexOf('{'), b = s.lastIndexOf('}');
     if (a >= 0 && b > a) s = s.slice(a, b + 1);
     let data;
-try {
-  let cleanStr = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
-  const firstBrace = cleanStr.indexOf('{');
-  const lastBrace = cleanStr.lastIndexOf('}');
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    cleanStr = cleanStr.slice(firstBrace, lastBrace + 1);
-  }
-  data = JSON.parse(cleanStr);
-} catch(e) {
-  // 如果 AI 吞了格式，用正则强行把文字抠出来
-  const narMatch = raw.match(/"narration"\s*:\s*"([^]*?)"\s*,\s*"(?:state_changes|options)"/);
-  if (narMatch) {
-    data = { narration: narMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'), state_changes: {}, options: [] };
-  } else {
-    data = { narration: raw.replace(/\\n/g, '\n').replace(/\\"/g, '"'), state_changes: {}, options: [] };
-  }
-}
+    try {
+      let cleanStr = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const firstBrace = cleanStr.indexOf('{');
+      const lastBrace = cleanStr.lastIndexOf('}');
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        cleanStr = cleanStr.slice(firstBrace, lastBrace + 1);
+      }
+      data = JSON.parse(cleanStr);
+    } catch(e) {
+      const narMatch = raw.match(/"narration"\s*:\s*"([^]*?)"\s*,\s*"(?:state_changes|options)"/);
+      if (narMatch) {
+        data = { narration: narMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'), state_changes: {}, options: [] };
+      } else {
+        data = { narration: raw.replace(/\\n/g, '\n').replace(/\\"/g, '"'), state_changes: {}, options: [] };
+      }
+    }
 
     const newText = data.narration || data.text || '（无叙述）';
     m.versions.push(newText);
@@ -1155,21 +1156,20 @@ try {
       if (c.house) gameState.house = c.house;
       if (Array.isArray(c.inventory_add)) c.inventory_add.forEach(i => { if(!gameState.inventory.includes(i)) gameState.inventory.push(i); });
       if (c.relations) {
-  for (const [charName, aiVal] of Object.entries(c.relations)) {
-    let finalVal = aiVal;
-    // 检查 AI 是否移除了物品（即送出了礼物）
-    if (c.inventory_remove && Array.isArray(c.inventory_remove)) {
-      for (const item of c.inventory_remove) {
-        const reaction = getGiftReaction(charName, item);
-        if (reaction) {
-          finalVal = reaction.value; // 覆盖 AI 的随机值
-          window.pushDisplay('system', `🎁 系统判定：你送出了【${item}】，${charName} 的反应是 ${reaction.label}（好感 ${finalVal >= 0 ? '+' : ''}${finalVal}）`);
+        for (const [charName, aiVal] of Object.entries(c.relations)) {
+          let finalVal = aiVal;
+          if (c.inventory_remove && Array.isArray(c.inventory_remove)) {
+            for (const item of c.inventory_remove) {
+              const reaction = getGiftReaction(charName, item);
+              if (reaction) {
+                finalVal = reaction.value;
+                window.pushDisplay('system', `🎁 系统判定：你送出了【${item}】，${charName} 的反应是 ${reaction.label}（好感 ${finalVal >= 0 ? '+' : ''}${finalVal}）`);
+              }
+            }
+          }
+          gameState.relations[charName] = (gameState.relations[charName] || 0) + finalVal;
         }
       }
-    }
-    gameState.relations[charName] = (gameState.relations[charName] || 0) + finalVal;
-  }
-}
       if (Array.isArray(c.actors)) gameState.actors = c.actors;
       LS.set('hp_state', gameState);
       window.renderStatus();
