@@ -3126,33 +3126,29 @@ window.renderCharSidebar = () => {
   const ey = c.enrollYear ? parseInt(c.enrollYear) : (by ? by + 11 : null);
   const grade = ey ? Math.max(1, Math.min(7, cy - ey + 1)) : 1;
 
- if (isStudent) {
-  for (let g = 1; g <= grade; g++) {
-    const courses = ccGradeCourses(g);
-    coursesOrJobHtml += `<div class="cc-subject-block"><div class="sb-title">${g} 年级</div>`;
-    
-    courses.forEach(s => {
-      // 从存档中读取进度，如果没有则默认为 0
-      const progress = (gameState.courseProgress && gameState.courseProgress[s]) ? gameState.courseProgress[s] : 0;
-      const percent = Math.min(100, Math.max(0, progress));
-      
-      coursesOrJobHtml += `
-        <div class="cc-subject-line" style="flex-direction:column;align-items:stretch;gap:6px;margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;">
-            <span>${s}</span>
-            <span style="color:var(--text-dim);font-weight:600;">${percent}/100</span>
+  if (isStudent) {
+    for (let g = 1; g <= grade; g++) {
+      const courses = ccGradeCourses(g);
+      coursesOrJobHtml += `<div class="cc-subject-block"><div class="sb-title">${g} 年级</div>`;
+      courses.forEach(s => {
+        const progress = (gameState.courseProgress && gameState.courseProgress[s]) ? gameState.courseProgress[s] : 0;
+        const percent = Math.min(100, Math.max(0, progress));
+        coursesOrJobHtml += `
+          <div class="cc-subject-line" style="flex-direction:column;align-items:stretch;gap:6px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;">
+              <span>${s}</span>
+              <span style="color:var(--text-dim);font-weight:600;">${percent}/100</span>
+            </div>
+            <div class="bar" style="height:6px;background:var(--border-dim);border-radius:3px;overflow:hidden;width:100%;">
+              <i style="display:block;height:100%;width:${percent}%;background:linear-gradient(90deg, #4a90e2, #6bb3ff);border-radius:3px;transition:width 0.4s ease;"></i>
+            </div>
           </div>
-          <div class="bar" style="height:6px;background:var(--border-dim);border-radius:3px;overflow:hidden;width:100%;">
-            <i style="display:block;height:100%;width:${percent}%;background:linear-gradient(90deg, #4a90e2, #6bb3ff);border-radius:3px;transition:width 0.4s ease;"></i>
-          </div>
-        </div>
-      `;
-    });
-    
-    coursesOrJobHtml += `</div>`;
-  }
-  if (!coursesOrJobHtml) coursesOrJobHtml = '<div style="font-size:11px;color:var(--text-faint);">（未入学）</div>';
-} else {
+        `;
+      });
+      coursesOrJobHtml += `</div>`;
+    }
+    if (!coursesOrJobHtml) coursesOrJobHtml = '<div style="font-size:11px;color:var(--text-faint);">（未入学）</div>';
+  } else {
     coursesOrJobHtml = `
       ${row('职业', c.occupation)}
       ${row('职位', c.rank)}
@@ -3165,10 +3161,8 @@ window.renderCharSidebar = () => {
   const owl = isStudent && grade >= 5;
   const newt = isStudent && grade >= 6;
 
-  // 财富显示：拥有的 / 上一轮花掉的
   const wG = st.galleons || 0, wS = st.sickles || 0, wK = st.knuts || 0;
   const lG = st.lastGalleons || 0, lS = st.lastSickles || 0, lK = st.lastKnuts || 0;
-  const totalNow = wG + wS/17 + wK/493;
   const totalLast = lG + lS/17 + lK/493;
   let spentStr = '—';
   if (totalLast !== 0) {
@@ -3188,6 +3182,7 @@ window.renderCharSidebar = () => {
     </div>
   `;
 
+  // ★ 这里是完整的侧边栏 HTML 生成
   box.innerHTML = `
     <div class="cc-sidebar-photo-wrap">${photoHtml}</div>
     <button class="primary" style="width:100%; margin-bottom:10px;" onclick="window.openCreateModal()">✏️ 修改角色档案</button>
@@ -3238,6 +3233,55 @@ window.renderCharSidebar = () => {
         <div class="cc-sec-body">${coursesOrJobHtml}</div>
       </div>
     `}
+
+    ${owl ? `<div class="cc-sec"><div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📝 O.W.L.（五年级）</h4><span class="arrow">▶</span></div><div class="cc-sec-body">${['魔药学','魔咒学','魔法史','变形术','草药学','天文学','黑魔法防御术','飞行课'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}<div class="cc-subject-block"><div class="sb-title">选修课（五选二）</div>${['神奇动物保护学','古代如尼文研究','算数占卜','麻瓜研究','占卜学'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}</div></div></div>` : ''}
+
+    ${newt ? `<div class="cc-sec"><div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📝 N.E.W.T.（六年级）</h4><span class="arrow">▶</span></div><div class="cc-sec-body">${['魔药学','魔咒学','魔法史','变形术','草药学','天文学','黑魔法防御术','飞行课'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}</div></div>` : ''}
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>🎒 物品</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">${gameState.inventory.length ? gameState.inventory.map(i=>`<span class="tag">${esc(i)}</span>`).join('') : '<div style="color:var(--text-faint);font-size:11px;">空空如也</div>'}</div>
+    </div>
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>💗 状态</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">
+        <div class="bar-row"><div class="bar-label"><span>魔力</span><span>${Math.round(st.mana)}/${st.maxMana}</span></div><div class="bar mana"><i style="width:${clamp(st.mana/st.maxMana*100,0,100)}%"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span>体力</span><span>${Math.round(st.stamina)}/${st.maxStamina}</span></div><div class="bar stam"><i style="width:${clamp(st.stamina/st.maxStamina*100,0,100)}%"></i></div></div>
+        ${row('魅力', st.charm || 10)}
+        ${row('敏捷', st.agility || 10)}
+        ${row('社交力', st.social || 10)}
+        ${row('思维力', st.intellect || 10)}
+        ${row('衣着', st.outfit)}
+        ${row('心情', st.mood)}
+        ${wealthHtml}
+      </div>
+    </div>
+
+    <!-- ★ 就是这个被你搞丢的模块，现在加回来了 ★ -->
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>👥 人物关系</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">${Object.keys(gameState.relations).length ? Object.entries(gameState.relations).map(([k,v])=>{
+        const label = getRelationLabel(v);
+        const tags = (gameState.relationsTags && gameState.relationsTags[k]) ? ` [${gameState.relationsTags[k].join('·')}]` : '';
+        return `<div class="rel" style="cursor:pointer;" onclick="window.openNpcDetail('${esc(k)}')">
+          <span>${esc(k)} / ${label}${tags}</span>
+          <span class="v ${v>=0?'pos':'neg'}">(${v>=0?'+':''}${v}/1000)</span>
+        </div>`;
+      }).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有结识任何人</div>'}</div>
+    </div>
+
+    <div class="cc-sec">
+      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>🏆 成就</h4><span class="arrow">▶</span></div>
+      <div class="cc-sec-body">${(gameState.achievements || []).length ? gameState.achievements.map(a => `
+        <div class="cc-row" style="flex-direction:column;align-items:stretch;">
+          <div style="font-size:12px;color:var(--accent-cyan);font-weight:600;">${esc(a.title)}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${esc(a.desc || '')}</div>
+        </div>
+      `).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有获得成就</div>'}</div>
+    </div>
+  `;
+};
 
     ${owl ? `<div class="cc-sec"><div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📝 O.W.L.（五年级）</h4><span class="arrow">▶</span></div><div class="cc-sec-body">${['魔药学','魔咒学','魔法史','变形术','草药学','天文学','黑魔法防御术','飞行课'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}<div class="cc-subject-block"><div class="sb-title">选修课（五选二）</div>${['神奇动物保护学','古代如尼文研究','算数占卜','麻瓜研究','占卜学'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}</div></div></div>` : ''}
 
