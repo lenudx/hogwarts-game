@@ -1,0 +1,34 @@
+<!-- 保存为 生成器.html -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>卡密生成器</title></head>
+<body style="background:#f4f4f9;font-family:sans-serif;padding:20px;">
+<h2>🎟️ 霍格沃茨卡密生成器</h2>
+<label>金币面额：</label><input type="number" id="amount" value="10000" style="padding:8px;border-radius:6px;border:1px solid #ccc;"><br><br>
+<label>生成数量：</label><input type="number" id="count" value="10" style="padding:8px;border-radius:6px;border:1px solid #ccc;"><br><br>
+<button onclick="generate()" style="padding:10px 20px;background:#ff9500;color:#fff;border:none;border-radius:8px;font-weight:bold;">批量生成</button>
+<textarea id="result" rows="10" style="width:100%;margin-top:20px;padding:10px;border-radius:8px;border:1px solid #ccc;" placeholder="生成的卡密会显示在这里..."></textarea>
+<script>
+function generate() {
+  const amount = document.getElementById('amount').value;
+  const count = document.getElementById('count').value;
+  const secret = 'HOGWARTS_2026_SECRET'; // ★ 你的核心秘钥，绝不能改，绝不能泄露！
+  const codes = [];
+  
+  for(let i=0; i<count; i++) {
+    const rand = Math.random().toString(36).slice(2, 8);
+    const data = amount + ':' + rand; // 比如 "10000:abc123"
+    const base64Data = btoa(data); // 编码
+    
+    // 简单的哈希算法
+    let hash = 0;
+    const str = data + secret;
+    for (let j = 0; j < str.length; j++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(j);
+      hash = hash & hash;
+    }
+    const check = Math.abs(hash).toString(36); // 校验码
+    codes.push(`HP-${base64Data}-${check}`);
+  }
+  document.getElementById('result').value = codes.join('\n');
+}
+</script>
+</body></html>
