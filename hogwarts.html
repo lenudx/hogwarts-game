@@ -791,7 +791,6 @@ window.cleanPet = () => {
 // ==================== 界面渲染 ====================
 window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); };
 window.openModal = (id) => { 
-  // ★ 核心修复：先强制显示弹窗，防止由于后续渲染失败导致弹窗打不开
   const modalEl = $(id);
   if (modalEl) modalEl.classList.add('show'); 
 
@@ -815,14 +814,19 @@ window.openModal = (id) => {
       renderReputation(); 
     }
     if(id === 'modal-settings') {
-      renderApiProfiles(); renderWorldbookSelect(); renderWorldList();
-      renderPresetSelect(); renderPresetList(); renderMusicPlaylist(); renderBeautifyUI(); renderSaveList();
+      // ★ 核心修复：只渲染最基础的，不一次性渲染所有页签
+      try { renderApiProfiles(); } catch(e) { console.error('渲染API出错', e); }
+      try { renderWorldbookSelect(); } catch(e) { console.error('渲染世界书出错', e); }
+      try { renderWorldList(); } catch(e) { console.error('渲染世界书列表出错', e); }
+      try { renderPresetSelect(); } catch(e) { console.error('渲染预设出错', e); }
+      try { renderPresetList(); } catch(e) { console.error('渲染预设列表出错', e); }
+      try { renderBeautifyUI(); } catch(e) { console.error('渲染美化出错', e); }
+      // ★ 注意：这里删除了 renderMusicPlaylist() 和 renderSaveList()，等用户点对应页签时才渲染
     }
     if(id === 'modal-pet') { renderPet(); }
     if(id === 'modal-forum') { renderForum(); }
   } catch (error) {
     console.error("弹窗渲染出错:", error);
-    // 如果你在手机端，可能来不及看控制台，这里弹出一个提示框方便排查
     alert("打开窗口出错：" + error.message + "\n请尝试重置本地缓存。");
   }
 };
@@ -830,8 +834,26 @@ window.closeModal = (id) => $(id).classList.remove('show');
 window.switchSettingsTab = (tabId) => {
   document.querySelectorAll('.settings-tabs button').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  document.querySelector(`.settings-tabs button[onclick*="${tabId}"]`).classList.add('active');
-  $(tabId).classList.add('active');
+  
+  const tabBtn = document.querySelector(`.settings-tabs button[onclick*="${tabId}"]`);
+  if (tabBtn) tabBtn.classList.add('active');
+  
+  const tabPane = $(tabId);
+  if (tabPane) {
+    tabPane.classList.add('active');
+    
+    // ★ 核心修复：切换到了对应的页签，才去渲染它，避免卡死！
+    try {
+      if (tabId === 'tab-music') renderMusicPlaylist();
+      if (tabId === 'tab-save') renderSaveList();
+      if (tabId === 'tab-redeem') {
+        const status = $('redeem-status');
+        if(status) status.innerHTML = ''; // 清空上次兑换提示
+      }
+    } catch(e) {
+      console.error('切换页签渲染出错', e);
+    }
+  }
 };
 
 window.renderStatus = () => {
@@ -2523,6 +2545,11 @@ if (window._autoRefreshForum) {
 // ==================== 音乐播放器 ====================
 window.renderMusicPlaylist = () => {
   const box = $('music-playlist'); if (!box) return;
+  // ★ 防止旧数据不是数组导致崩溃
+if (!Array.isArray(playlist)) {
+  playlist = [];
+  LS.set('hp_playlist', playlist);
+}
   box.innerHTML = playlist.map((item, index) => `
     <div class="playlist-item ${index === currentTrackIndex ? 'active' : ''}" onclick="window.playTrack(${index})">
       <span>${esc(item.name)}</span>
@@ -2724,21 +2751,19 @@ window.createSave = () => {
   const name = prompt('存档名称：', def);
   if(name === null) return;
   const saves = getSaves();
-  saves.push({
-    id: 'save_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
-    name: name.trim() || def,
-    subtitle: `${tl.name} · ${gameState.time || ''} · ${gameState.scene || ''}`,
-    ts: Date.now(),
-    data: {
-      gameState: JSON.parse(JSON.stringify(gameState)),
-      history: JSON.parse(JSON.stringify(history)),
-      displayHistory: JSON.parse(JSON.stringify(displayHistory))
-    }
-  });
-  setSaves(saves);
-  window.renderSaveList();
-  alert('已存档。');
-};
+  const saves = getSaves();
+saves.push({
+  id: 'save_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+  name: name.trim() || def,
+  subtitle: `${tl.name} · ${gameState.time || ''} · ${gameState.scene || ''}`,
+  ts: Date.now(),
+  data: {
+    gameState: JSON.parse(JSON.stringify(gameState)),
+    history: JSON.parse(JSON.stringify(history)),
+    // ★ 核心修改：只存最近100条显示记录，防止因聊天记录过长导致手机内存溢出卡死
+    displayHistory: JSON.parse(JSON.stringify(displayHistory.slice(-100)))
+  }
+});
 
 window.loadSave = (id) => {
   if(!confirm('读取此存档？当前未保存的进度会丢失。')) return;
