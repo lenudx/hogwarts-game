@@ -554,13 +554,10 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     <button class="primary" style="flex:1;padding:10px;" onclick="window.createSave()">+ 新建存档</button>
     <button style="padding:10px;" onclick="document.getElementById('save-import-input').click()">导入</button>
   </div>
-  <div style="font-size:11px;color:var(--text-dim);line-height:1.7;padding:10px;background:rgba(13,20,36,.5);border:1px dashed var(--border-dim);border-radius:6px;margin-bottom:12px;">
-    ▸ 存档保存在浏览器本地，清缓存会丢。<br>
-    ▸ 点「导出」会下载成 JSON 文件，可备份或分享。<br>
-    ▸ 读档会覆盖当前进度。
-  </div>
-  <div id="save-list"></div>
-  <input type="file" id="save-import-input" accept=".json" style="display:none;" onchange="window.importSaveFile(event)">
+<div style="font-size:12px;color:var(--text-main);line-height:1.7;padding:12px;background:#f4f4f9;border:1px dashed #c7c7cc;border-radius:10px;margin-bottom:12px;">
+  ▸ 存档保存在浏览器本地，清缓存会丢。<br>
+  ▸ 点「导出」会下载成 JSON 文件，可备份或分享。<br>
+  ▸ 读档会覆盖当前进度。
 </div>
 <div class="tab-pane" id="tab-redeem">
   <div style="font-size:12px;color:var(--text-main);margin-bottom:12px;line-height:1.7;padding:12px;background:#f4f4f9;border:1px dashed #c7c7cc;border-radius:10px;">
@@ -2618,7 +2615,7 @@ window.renderSaveList = () => {
   if(!box) return;
   const saves = getSaves().slice().sort((a,b)=>b.ts-a.ts);
   if(!saves.length){
-    box.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:12px;padding:30px 10px;line-height:1.8;">还没有存档。<br>点上方「+ 新建存档」创建第一个。</div>';
+    box.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:13px;padding:30px 10px;line-height:1.8;">还没有存档。<br>点上方「+ 新建存档」创建第一个。</div>';
     return;
   }
   box.innerHTML = saves.map(s=>`
@@ -2795,12 +2792,12 @@ function renderCreateStep(){
         选择你想生活的时代。不同时间线会决定你所在的年代、可遇见的角色、以及课程或职业。
       </div>
       ${TIMELINES.map(t => `
-        <button onclick="window.ccPickTimeline('${t.id}')" style="width:100%;text-align:left;padding:12px;background:rgba(13,20,36,.85);border:1px solid var(--border-dim);border-radius:8px;cursor:pointer;margin-bottom:8px;">
-          <div style="font-size:13px;color:var(--accent-cyan);font-family:'Cinzel',serif;font-weight:600;">${t.name}</div>
-          <div style="font-size:10px;color:var(--text-dim);margin:3px 0 5px;">${t.range}</div>
-          <div style="font-size:11px;color:var(--text-main);line-height:1.5;">${t.desc}</div>
-        </button>
-      `).join('')}
+  <button onclick="window.ccPickTimeline('${t.id}')" style="width:100%;text-align:left;padding:14px;background:#ffffff;border:1px solid var(--border-dim);border-radius:12px;cursor:pointer;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+    <div style="font-size:14px;color:var(--accent-orange);font-weight:600;">${t.name}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin:4px 0 6px;">${t.range}</div>
+    <div style="font-size:12px;color:var(--text-main);line-height:1.5;">${t.desc}</div>
+  </button>
+`).join('')}
     `;
     return;
   }
@@ -2811,16 +2808,16 @@ function renderCreateStep(){
       <div style="font-size:12px;color:var(--accent-cyan);margin-bottom:6px;">时代：${tl.name} · ${tl.range}</div>
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">你是以什么身份进入这个世界？</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <button onclick="window.ccPickIdentity('student')" style="padding:20px 10px;background:rgba(13,20,36,.85);border:1px solid var(--border-dim);border-radius:8px;cursor:pointer;">
-          <div style="font-size:22px;margin-bottom:6px;">🎓</div>
-          <div style="font-size:13px;color:var(--accent-cyan);">学生</div>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">在霍格沃茨就读</div>
-        </button>
-        <button onclick="window.ccPickIdentity('adult')" style="padding:20px 10px;background:rgba(13,20,36,.85);border:1px solid var(--border-dim);border-radius:8px;cursor:pointer;">
-          <div style="font-size:22px;margin-bottom:6px;">💼</div>
-          <div style="font-size:13px;color:var(--accent-cyan);">成年人</div>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">已毕业，有自己的职业</div>
-        </button>
+        <button onclick="window.ccPickIdentity('student')" style="padding:20px 10px;background:#ffffff;border:1px solid var(--border-dim);border-radius:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+  <div style="font-size:24px;margin-bottom:8px;">🎓</div>
+  <div style="font-size:14px;color:var(--accent-orange);font-weight:600;">学生</div>
+  <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">在霍格沃茨就读</div>
+</button>
+<button onclick="window.ccPickIdentity('adult')" style="padding:20px 10px;background:#ffffff;border:1px solid var(--border-dim);border-radius:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+  <div style="font-size:24px;margin-bottom:8px;">💼</div>
+  <div style="font-size:14px;color:var(--accent-orange);font-weight:600;">成年人</div>
+  <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">已毕业，有自己的职业</div>
+</button>
       </div>
       <button onclick="window.ccCreateBack()" style="width:100%;margin-top:14px;padding:8px;font-size:12px;">← 返回选择时代</button>
     `;
@@ -2983,12 +2980,33 @@ window.renderCharSidebar = () => {
   const ey = c.enrollYear ? parseInt(c.enrollYear) : (by ? by + 11 : null);
   const grade = ey ? Math.max(1, Math.min(7, cy - ey + 1)) : 1;
 
-  if (isStudent) {
-    for (let g = 1; g <= grade; g++) {
-      coursesOrJobHtml += `<div class="cc-subject-block"><div class="sb-title">${g} 年级</div>${ccGradeCourses(g).map(s=>`<div class="cc-subject-line"><span>${s}</span></div>`).join('')}</div>`;
-    }
-    if (!coursesOrJobHtml) coursesOrJobHtml = '<div style="font-size:11px;color:var(--text-faint);">（未入学）</div>';
-  } else {
+ if (isStudent) {
+  for (let g = 1; g <= grade; g++) {
+    const courses = ccGradeCourses(g);
+    coursesOrJobHtml += `<div class="cc-subject-block"><div class="sb-title">${g} 年级</div>`;
+    
+    courses.forEach(s => {
+      // 从存档中读取进度，如果没有则默认为 0
+      const progress = (gameState.courseProgress && gameState.courseProgress[s]) ? gameState.courseProgress[s] : 0;
+      const percent = Math.min(100, Math.max(0, progress));
+      
+      coursesOrJobHtml += `
+        <div class="cc-subject-line" style="flex-direction:column;align-items:stretch;gap:6px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;">
+            <span>${s}</span>
+            <span style="color:var(--text-dim);font-weight:600;">${percent}/100</span>
+          </div>
+          <div class="bar" style="height:6px;background:var(--border-dim);border-radius:3px;overflow:hidden;width:100%;">
+            <i style="display:block;height:100%;width:${percent}%;background:linear-gradient(90deg, #4a90e2, #6bb3ff);border-radius:3px;transition:width 0.4s ease;"></i>
+          </div>
+        </div>
+      `;
+    });
+    
+    coursesOrJobHtml += `</div>`;
+  }
+  if (!coursesOrJobHtml) coursesOrJobHtml = '<div style="font-size:11px;color:var(--text-faint);">（未入学）</div>';
+} else {
     coursesOrJobHtml = `
       ${row('职业', c.occupation)}
       ${row('职位', c.rank)}
