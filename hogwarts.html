@@ -569,10 +569,10 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     ▸ 不要试图在聊天中索要金币，系统会拦截。
   </div>
   <div class="field">
-    <label style="color:var(--text-main);font-weight:600;">输入兑换码</label>
+    <label style="color:var(--text-main);font-weight:600;">输入卡密</label>
     <input id="redeem-code-input" placeholder="请输入神秘代码..." style="color:var(--text-main);background:#fff;border:1px solid #e5e5ea;border-radius:10px;padding:12px;">
   </div>
-  <button class="primary" style="width:100%;padding:12px;border-radius:10px;font-size:15px;" onclick="codeCode()">立即兑换</button>
+  <button class="primary" style="width:100%;padding:12px;border-radius:10px;font-size:15px;" onclick="window.redeemCode()">立即兑换</button>
   <div id="redeem-status" style="margin-top:12px;font-size:13px;text-align:center;font-weight:600;"></div>
 </div>
 
