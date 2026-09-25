@@ -3182,7 +3182,6 @@ window.renderCharSidebar = () => {
     </div>
   `;
 
-  // ★ 这里是完整的侧边栏 HTML 生成
   box.innerHTML = `
     <div class="cc-sidebar-photo-wrap">${photoHtml}</div>
     <button class="primary" style="width:100%; margin-bottom:10px;" onclick="window.openCreateModal()">✏️ 修改角色档案</button>
@@ -3258,7 +3257,6 @@ window.renderCharSidebar = () => {
       </div>
     </div>
 
-    <!-- ★ 就是这个被你搞丢的模块，现在加回来了 ★ -->
     <div class="cc-sec">
       <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>👥 人物关系</h4><span class="arrow">▶</span></div>
       <div class="cc-sec-body">${Object.keys(gameState.relations).length ? Object.entries(gameState.relations).map(([k,v])=>{
@@ -3283,61 +3281,26 @@ window.renderCharSidebar = () => {
   `;
 };
 
-    ${owl ? `<div class="cc-sec"><div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📝 O.W.L.（五年级）</h4><span class="arrow">▶</span></div><div class="cc-sec-body">${['魔药学','魔咒学','魔法史','变形术','草药学','天文学','黑魔法防御术','飞行课'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}<div class="cc-subject-block"><div class="sb-title">选修课（五选二）</div>${['神奇动物保护学','古代如尼文研究','算数占卜','麻瓜研究','占卜学'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}</div></div></div>` : ''}
-
-    ${newt ? `<div class="cc-sec"><div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>📝 N.E.W.T.（六年级）</h4><span class="arrow">▶</span></div><div class="cc-sec-body">${['魔药学','魔咒学','魔法史','变形术','草药学','天文学','黑魔法防御术','飞行课'].map(s=>`<div class="cc-subject-line"><span>${s}</span><span class="cc-grade-chip">-</span></div>`).join('')}</div></div>` : ''}
-
-    <div class="cc-sec">
-      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>🎒 物品</h4><span class="arrow">▶</span></div>
-      <div class="cc-sec-body">${gameState.inventory.length ? gameState.inventory.map(i=>`<span class="tag">${esc(i)}</span>`).join('') : '<div style="color:var(--text-faint);font-size:11px;">空空如也</div>'}</div>
-    </div>
-
-    <div class="cc-sec">
-      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>💗 状态</h4><span class="arrow">▶</span></div>
-      <div class="cc-sec-body">
-        <div class="bar-row"><div class="bar-label"><span>魔力</span><span>${Math.round(st.mana)}/${st.maxMana}</span></div><div class="bar mana"><i style="width:${clamp(st.mana/st.maxMana*100,0,100)}%"></i></div></div>
-<div class="bar-row"><div class="bar-label"><span>体力</span><span>${Math.round(st.stamina)}/${st.maxStamina}</span></div><div class="bar stam"><i style="width:${clamp(st.stamina/st.maxStamina*100,0,100)}%"></i></div></div>
-${row('魅力', st.charm || 10)}
-${row('敏捷', st.agility || 10)}
-${row('社交力', st.social || 10)}
-${row('思维力', st.intellect || 10)}
-${row('衣着', st.outfit)}
-${row('心情', st.mood)}
-    ${wealthHtml}
-          </div>
-        </div>
-  `;
-};
-
 // ==================== 人物档案系统 ====================
-// 注意：下面这些代码是独立的函数，不能写在 renderCharSidebar 里面！
 if (!gameState.characters) gameState.characters = {};
 if (!gameState.relationsTags) gameState.relationsTags = {};
 
 window.openNpcDetail = (name) => {
-  // 兜底数据
   if (!gameState.characters[name]) {
     gameState.characters[name] = {
-      name: name,
-      gender: '待补充',
-      age: '待补充',
-      birthday: '待补充',
-      identity: '待补充',
-      outfit: '待补充',
-      opinion: '暂时还没有深入了解，不知全貌。',
-      otherRelations: '暂无信息'
+      name: name, gender: '待补充', age: '待补充', birthday: '待补充',
+      identity: '待补充', outfit: '待补充', opinion: '暂时还没有深入了解，不知全貌。', otherRelations: '暂无信息'
     };
   }
 
   const c = gameState.characters[name];
   const affinity = gameState.relations[name] || 0;
-  const level = getRelationLabel(affinity); // 使用新的等级名称
+  const level = getRelationLabel(affinity);
   const tags = (gameState.relationsTags && gameState.relationsTags[name]) ? gameState.relationsTags[name].join(' · ') : '无特殊关系';
 
   const box = $('npc-modal-body');
   if (!box) return;
 
-  // 进度条百分比，限制在0-100之间
   const barPercent = Math.min(100, Math.max(0, (affinity / 1000) * 100));
 
   box.innerHTML = `
@@ -3384,10 +3347,6 @@ window.openNpcDetail = (name) => {
     </div>
   `;
   window.openModal('modal-npc');
-};
-
-window.closeNpcDetail = () => {
-  window.closeModal('modal-npc');
 };
 
 window.closeNpcDetail = () => {
