@@ -386,12 +386,12 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 </div>
 <div class="msg-menu-overlay" id="msg-menu-overlay" onclick="window.hideMesMenu(event)">
   <div class="msg-menu-box" onclick="event.stopPropagation()">
-    <div class="msg-menu-title" id="msg-menu-title">◈ 消息操作</div>
-    <button onclick="window.menuRegen()">🔁 再说一个（重新生成）</button>
-    <button onclick="window.menuEdit()">✏️ 修改内容</button>
-    <button onclick="window.menuDelete()" class="danger">🗑 删除这条消息</button>
-    <button onclick="window.hideMesMenu()" class="cancel">取消</button>
-  </div>
+  <div class="msg-menu-title" id="msg-menu-title">◈ 消息操作</div>
+  <button id="menu-btn-regen" onclick="window.menuRegen()">🔁 再说一个（重新生成）</button>
+  <button id="menu-btn-edit" onclick="window.menuEdit()">✏️ 修改内容</button>
+  <button onclick="window.menuDelete()" class="danger">🗑 删除这条消息</button>
+  <button onclick="window.hideMesMenu()" class="cancel">取消</button>
+</div>
 </div>
 <div id="intro-anim">
   <button id="intro-skip" onclick="window.skipIntroAnim()">跳过 ↦</button>
@@ -889,9 +889,8 @@ window.pushDisplay = (role, text) => {
   const el = makeMsgEl(role, text);
   const idx = displayHistory.length - 1;
   el.dataset.idx = idx;
-  if (role === 'assistant') {
-    attachMsgGestures(el, idx);
-  }
+  // ★ 核心修复：移除判断，不管是谁的消息都绑定长按手势
+attachMsgGestures(el, idx);
   $('story').appendChild(el);
   $('story').scrollTop = $('story').scrollHeight;
   LS.set('hp_display', displayHistory);
@@ -911,15 +910,16 @@ window.renderStory = () => {
     el.dataset.idx = i;
 
     if (m.role === 'assistant') {
-      const verCount = m.versions.length;
-      if (verCount > 1) {
-        const badge = document.createElement('span');
-        badge.className = 'msg-ver-badge';
-        badge.textContent = (m.activeVersion + 1) + ' / ' + verCount;
-        el.appendChild(badge);
-      }
-      attachMsgGestures(el, i);
-    }
+  const verCount = m.versions.length;
+  if (verCount > 1) {
+    const badge = document.createElement('span');
+    badge.className = 'msg-ver-badge';
+    badge.textContent = (m.activeVersion + 1) + ' / ' + verCount;
+    el.appendChild(badge);
+  }
+}
+// ★ 核心修复：移到外面，不管是AI还是玩家，都绑定手势
+attachMsgGestures(el, i);
     box.appendChild(el);
   });
   requestAnimationFrame(() => box.scrollTop = box.scrollHeight);
@@ -1019,16 +1019,21 @@ window.showMesMenu = (idx) => {
       title.textContent = '◈ 叙事 · 第 ' + ((m.activeVersion || 0) + 1) + ' / ' + verCount + ' 版';
     }
   }
-  // 只有 AI 叙事才显示"再说一个"
-  const regenBtn = $('msg-menu-overlay').querySelector('button[onclick*="menuRegen"]');
-  if (regenBtn) regenBtn.style.display = (m.role === 'assistant') ? 'block' : 'none';
-  $('msg-menu-overlay').classList.add('show');
-};
 
-window.hideMesMenu = (e) => {
-  if (e && e.target !== e.currentTarget) return;
-  $('msg-menu-overlay').classList.remove('show');
-  menuTargetIdx = -1;
+  // ★ 核心修改：根据角色动态显示/隐藏按钮
+  const isAI = (m.role === 'assistant');
+  
+  const regenBtn = document.getElementById('menu-btn-regen');
+  if (regenBtn) {
+    regenBtn.style.display = isAI ? 'block' : 'none'; // 只有AI的消息才显示“再说一个”
+  }
+  
+  const editBtn = document.getElementById('menu-btn-edit');
+  if (editBtn) {
+    editBtn.style.display = isAI ? 'none' : 'block'; // ★ 核心防作弊：只有玩家自己的消息才显示“修改内容”
+  }
+
+  $('msg-menu-overlay').classList.add('show');
 };
 
 // 删除
