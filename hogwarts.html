@@ -1920,6 +1920,7 @@ const REDEEM_CODES = {
 };
 
 // ==================== 卡密系统 ====================
+// ==================== 卡密系统（兼容作者后门） ====================
 window.redeemCode = () => {
   const input = $('redeem-code-input');
   const status = $('redeem-status');
@@ -1927,14 +1928,26 @@ window.redeemCode = () => {
   
   if (!code) { status.innerHTML = '<span style="color:#ff3b30;">请输入卡密</span>'; return; }
   
-  // 检查是否已使用过
   if (!gameState.usedCodes) gameState.usedCodes = [];
   if (gameState.usedCodes.includes(code)) {
     status.innerHTML = '<span style="color:#ff3b30;">❌ 该卡密已被使用过</span>';
     return;
   }
+
+  // ★ 优先检查：是不是作者自用的隐藏兑换码？
+  if (REDEEM_CODES[code]) {
+    const reward = REDEEM_CODES[code];
+    gameState.stats.galleons += reward.galleons;
+    gameState.usedCodes.push(code);
+    LS.set('hp_state', gameState);
+    window.renderStatus();
+    status.innerHTML = `<span style="color:#34c759;">✅ 兑换成功！获得 ${reward.galleons} 加隆（${reward.desc}）</span>`;
+    input.value = '';
+    window.pushDisplay('system', `🎁 系统提示：成功使用隐藏兑换码【${code}】，获得 ${reward.galleons} 加隆！`);
+    return; // 执行完作者码就直接结束，不走后面的验证
+  }
   
-  // 解析卡密 HP-{base64}-{hash}
+  // ★ 再检查：如果是玩家买来的卡密（HP- 开头），走正规验证流程
   if (!code.startsWith('HP-')) {
     status.innerHTML = '<span style="color:#ff3b30;">❌ 无效的卡密格式</span>';
     return;
