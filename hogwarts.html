@@ -384,13 +384,13 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     </div>
   </main>
 </div>
-<div class="msg-menu-overlay" id="msg-menu-overlay" onclick="window.hideMesMenu(event)">
+<div class="msg-menu-overlay" id="msg-menu-overlay" onclick="if(event.target===this) window.hideMesMenu()">
   <div class="msg-menu-box" onclick="event.stopPropagation()">
   <div class="msg-menu-title" id="msg-menu-title">◈ 消息操作</div>
   <button id="menu-btn-regen" onclick="window.menuRegen()">🔁 再说一个（重新生成）</button>
   <button id="menu-btn-edit" onclick="window.menuEdit()">✏️ 修改内容</button>
   <button onclick="window.menuDelete()" class="danger">🗑 删除这条消息</button>
-  <button onclick="window.hideMesMenu()" class="cancel">取消</button>
+  <button onclick="window.hideMesMenu()" class="cancel" type="button">取消</button>
 </div>
 </div>
 <div id="intro-anim">
