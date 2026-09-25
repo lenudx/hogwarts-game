@@ -563,17 +563,17 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   <input type="file" id="save-import-input" accept=".json" style="display:none;" onchange="window.importSaveFile(event)">
 </div>
 <div class="tab-pane" id="tab-redeem">
-  <div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.7;padding:10px;background:rgba(13,20,36,.5);border:1px dashed var(--border-dim);border-radius:6px;">
-    ▸ 输入特定兑换码获得系统外挂奖励。<br>
+  <div style="font-size:12px;color:var(--text-main);margin-bottom:12px;line-height:1.7;padding:12px;background:#f4f4f9;border:1px dashed #c7c7cc;border-radius:10px;">
+    ▸ 输入特定兑换码获得系统奖励。<br>
     ▸ 每个兑换码只能使用一次。<br>
     ▸ 不要试图在聊天中索要金币，系统会拦截。
   </div>
   <div class="field">
-    <label>输入兑换码</label>
-    <input id="redeem-code-input" placeholder="请输入神秘代码...">
+    <label style="color:var(--text-main);font-weight:600;">输入兑换码</label>
+    <input id="redeem-code-input" placeholder="请输入神秘代码..." style="color:var(--text-main);background:#fff;border:1px solid #e5e5ea;border-radius:10px;padding:12px;">
   </div>
-  <button class="primary" style="width:100%;padding:10px" onclick="window.redeemCode()">兑换</button>
-  <div id="redeem-status" style="margin-top:10px;font-size:12px;text-align:center;"></div>
+  <button class="primary" style="width:100%;padding:12px;border-radius:10px;font-size:15px;" onclick="codeCode()">立即兑换</button>
+  <div id="redeem-status" style="margin-top:12px;font-size:13px;text-align:center;font-weight:600;"></div>
 </div>
 
       <!-- 音乐 -->
@@ -1919,30 +1919,66 @@ const REDEEM_CODES = {
   'Gryffindor': { galleons: 500, desc: '格兰芬多公共休息室基金' }
 };
 
+// ==================== 卡密系统 ====================
 window.redeemCode = () => {
   const input = $('redeem-code-input');
   const status = $('redeem-status');
   const code = input.value.trim();
   
-  if (!code) { status.innerHTML = '<span style="color:#f87171;">请输入兑换码</span>'; return; }
+  if (!code) { status.innerHTML = '<span style="color:#ff3b30;">请输入卡密</span>'; return; }
   
+  // 检查是否已使用过
   if (!gameState.usedCodes) gameState.usedCodes = [];
   if (gameState.usedCodes.includes(code)) {
-    status.innerHTML = '<span style="color:#f87171;">❌ 该兑换码已被使用过</span>';
+    status.innerHTML = '<span style="color:#ff3b30;">❌ 该卡密已被使用过</span>';
     return;
   }
   
-  const reward = REDEEM_CODES[code];
-  if (reward) {
-    gameState.stats.galleons += reward.galleons;
+  // 解析卡密 HP-{base64}-{hash}
+  if (!code.startsWith('HP-')) {
+    status.innerHTML = '<span style="color:#ff3b30;">❌ 无效的卡密格式</span>';
+    return;
+  }
+  
+  const parts = code.split('-');
+  if (parts.length !== 3) {
+    status.innerHTML = '<span style="color:#ff3b30;">❌ 无效的卡密格式</span>';
+    return;
+  }
+  
+  try {
+    const rawData = atob(parts[1]); // 解码出 "10000:abc123"
+    const [amountStr, rand] = rawData.split(':');
+    const amount = parseInt(amountStr);
+    
+    // 重新计算校验码
+    const secret = 'HOGWARTS_2026_SECRET'; // ★ 必须和生成器里的秘钥一模一样！
+    const str = amountStr + ':' + rand + secret;
+    let hash = 0;
+    for (let j = 0; j < str.length; j++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(j);
+      hash = hash & hash;
+    }
+    const check = Math.abs(hash).toString(36);
+    
+    // 对比玩家输入的卡密校验码和计算出来的是否一致
+    if (check !== parts[2]) {
+      status.innerHTML = '<span style="color:#ff3b30;">❌ 无效的卡密（验证失败）</span>';
+      return;
+    }
+    
+    // 验证通过，发金币！
+    gameState.stats.galleons += amount;
     gameState.usedCodes.push(code);
     LS.set('hp_state', gameState);
     window.renderStatus();
-    status.innerHTML = `<span style="color:#4ade80;">✅ 兑换成功！获得 ${reward.galleons} 加隆（${reward.desc}）</span>`;
+    
+    status.innerHTML = `<span style="color:#34c759;">✅ 兑换成功！获得 ${amount} 加隆</span>`;
     input.value = '';
-    window.pushDisplay('system', `🎁 系统提示：成功使用兑换码【${code}】，获得 ${reward.galleons} 加隆！`);
-  } else {
-    status.innerHTML = '<span style="color:#f87171;">❌ 无效的兑换码</span>';
+    window.pushDisplay('system', `🎁 系统提示：成功使用卡密，获得 ${amount} 加隆！`);
+    
+  } catch (e) {
+    status.innerHTML = '<span style="color:#ff3b30;">❌ 无效的卡密</span>';
   }
 };
 // ==================== 反作弊检测函数 ====================
