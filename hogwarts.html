@@ -1197,6 +1197,21 @@ window.menuRegen = async () => {
         }
       }
       if (Array.isArray(c.actors)) gameState.actors = c.actors;
+      // ★ 处理特殊关系标签
+if (c.relation_tags && typeof c.relation_tags === 'object') {
+  for (const [charName, tags] of Object.entries(c.relation_tags)) {
+    if (Array.isArray(tags)) {
+      gameState.relationsTags[charName] = tags;
+    }
+  }
+}
+// ★ 处理 NPC 角色档案更新
+if (data.npc_profiles && typeof data.npc_profiles === 'object') {
+  for (const [charName, profile] of Object.entries(data.npc_profiles)) {
+    if (!gameState.characters[charName]) gameState.characters[charName] = { name: charName };
+    Object.assign(gameState.characters[charName], profile);
+  }
+}
       LS.set('hp_state', gameState);
       window.renderStatus();
     }
@@ -2340,6 +2355,24 @@ function buildSystemPrompt(extra='') {
 - 格式：{"narration": "...", "state_changes": {...}, "options": [...]}
 - narration 正文使用第二人称“你”叙述，沉浸式、有画面感。
 - options 提供 2~4 个符合当前情境的短期行动建议，每条不超过 15 字。
+
+【新增规则：好感度与关系状态】
+1. 好感度数值区间对应关系：0-150(朋友)、150(暧昧)、150-260(表白期)、260(知己)、500(伴侣)、700(挚爱)、800(订婚)、900(灵魂知己)、1000(灵魂伴侣)。请在描写剧情时，严格遵守当前好感度对应的关系状态，不要越界。
+2. 特殊剧情触发：当好感度处于150-260之间，且玩家主动表白或NPC主动表白时，请基于【百分之七十概率答应，百分之三十概率拒绝】这个硬性规则来推动剧情，不要自己随意决定。
+3. 特殊关系标签：剧情发展到一定阶段（如地下恋、异地恋、包办婚姻、假扮情侣、分手、和好、复合等），需在 state_changes 中提供 "relation_tags" 字段，格式如："relation_tags": {"角色名": ["地下恋", "异地恋"]}。前端会展示这些特殊关系。
+4. 角色档案更新：在 state_changes 中提供 "npc_profiles" 字段，格式如下：
+"npc_profiles": {
+  "角色名": {
+    "gender": "性别",
+    "age": "年岁",
+    "birthday": "生日",
+    "identity": "身份",
+    "outfit": "衣着（20字以内）",
+    "opinion": "对{{user}}的看法（不少于100字，要符合角色性格，出于个人内心直观意识，不刻板，不要复述玩家行为，而是表达内心的真实想法和评估）",
+    "otherRelations": "与其他人物的关系，如：马尔福/死对头、邓布利多/敬畏"
+  }
+}
+注意：只有当角色信息有更新时才提供。opinion 的字数一定要够，要有深度。
 `;
 
   // ========== 第三部分：预设注入（你原有的代码，保留） ==========
@@ -2489,6 +2522,21 @@ if (data.state_changes) {
   }
 }
       if (Array.isArray(c.actors)) gameState.actors = c.actors;
+      // ★ 处理特殊关系标签
+if (c.relation_tags && typeof c.relation_tags === 'object') {
+  for (const [charName, tags] of Object.entries(c.relation_tags)) {
+    if (Array.isArray(tags)) {
+      gameState.relationsTags[charName] = tags;
+    }
+  }
+}
+// ★ 处理 NPC 角色档案更新
+if (data.npc_profiles && typeof data.npc_profiles === 'object') {
+  for (const [charName, profile] of Object.entries(data.npc_profiles)) {
+    if (!gameState.characters[charName]) gameState.characters[charName] = { name: charName };
+    Object.assign(gameState.characters[charName], profile);
+  }
+}
       // 处理 AI 返回的成就 / 论坛帖子
 if (Array.isArray(data.achievement_add)) {
   data.achievement_add.forEach(a => {
@@ -3037,13 +3085,14 @@ function ccGradeCourses(g) {
 
 function getRelationLabel(v) {
   v = Number(v) || 0;
-  if (v < 10) return '初识';
-  if (v < 15) return '熟悉';
-  if (v < 50) return '同学';
-  if (v < 60) return '朋友';
-  if (v < 75) return '知己';
-  if (v < 80) return '暧昧';
-  if (v < 95) return '情人';
+  if (v < 150) return '朋友';
+  if (v < 260) return '暧昧期';
+  if (v === 260) return '知己'; // 表白成功后跳转至此
+  if (v < 500) return '知己';
+  if (v < 700) return '伴侣';
+  if (v < 800) return '挚爱';
+  if (v < 900) return '订婚';
+  if (v < 1000) return '灵魂知己';
   return '灵魂伴侣';
 }
 window.renderCharSidebar = () => {
@@ -3214,23 +3263,84 @@ ${wealthHtml}
       </div>
     </div>
 
-    <div class="cc-sec">
-      <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>👥 人物关系</h4><span class="arrow">▶</span></div>
-      <div class="cc-sec-body">${Object.keys(gameState.relations).length ? Object.entries(gameState.relations).map(([k,v])=>{
-        const label = getRelationLabel(v);
-        return `<div class="rel"><span>${esc(k)} / ${label}</span><span class="v ${v>=0?'pos':'neg'}">(${v>=0?'+':''}${v})</span></div>`;
-      }).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有结识任何人</div>'}</div>
+// ==================== 人物档案系统 ====================
+if (!gameState.characters) gameState.characters = {};
+if (!gameState.relationsTags) gameState.relationsTags = {};
+
+window.openNpcDetail = (name) => {
+  // 兜底数据
+  if (!gameState.characters[name]) {
+    gameState.characters[name] = {
+      name: name,
+      gender: '待补充',
+      age: '待补充',
+      birthday: '待补充',
+      identity: '待补充',
+      outfit: '待补充',
+      opinion: '暂时还没有深入了解，不知全貌。',
+      otherRelations: '暂无信息'
+    };
+  }
+
+  const c = gameState.characters[name];
+  const affinity = gameState.relations[name] || 0;
+  const level = getRelationLabel(affinity); // 使用新的等级名称
+  const tags = (gameState.relationsTags && gameState.relationsTags[name]) ? gameState.relationsTags[name].join(' · ') : '无特殊关系';
+
+  const box = $('npc-modal-body');
+  if (!box) return;
+
+  // 进度条百分比，限制在0-100之间
+  const barPercent = Math.min(100, Math.max(0, (affinity / 1000) * 100));
+
+  box.innerHTML = `
+    <div class="cc-sec open" style="border:1px solid var(--border-dim); margin-bottom:12px;">
+      <div class="cc-sec-head" style="background:#fafafa;">
+        <h4 style="color:var(--accent-orange); font-size:16px;">${esc(c.name)}</h4>
+        <span style="font-size:12px; color:var(--text-dim);">${esc(level)} ${tags !== '无特殊关系' ? '· ' + tags : ''}</span>
+      </div>
+      <div class="cc-sec-body" style="display:block;">
+        <div class="cc-row"><div class="cc-k">性别</div><div class="cc-v">${esc(c.gender)}</div></div>
+        <div class="cc-row"><div class="cc-k">年岁</div><div class="cc-v">${esc(c.age)}</div></div>
+        <div class="cc-row"><div class="cc-k">生日</div><div class="cc-v">${esc(c.birthday)}</div></div>
+        <div class="cc-row"><div class="cc-k">身份</div><div class="cc-v">${esc(c.identity)}</div></div>
+        <div class="cc-row"><div class="cc-k">衣着</div><div class="cc-v">${esc(c.outfit)}</div></div>
+        
+        <div class="cc-row" style="flex-direction:column; align-items:stretch; border-bottom:none; padding-bottom:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="cc-k" style="min-width:auto;">对{{user}}的好感</span>
+            <span class="cc-v" style="flex:none; color:var(--accent-orange); font-weight:bold;">${affinity} / 1000</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:11px; color:var(--text-dim);">当前阶段：${level}</span>
+          </div>
+          <div class="bar" style="background:var(--border-dim); height:8px; border-radius:4px; overflow:hidden;">
+            <i style="display:block; height:100%; width:${barPercent}%; background:linear-gradient(90deg, #ff7e5f, #feb47b); border-radius:4px; transition: width 0.4s ease;"></i>
+          </div>
+          <div style="font-size:10px; color:var(--text-faint); text-align:right; margin-top:2px;">最高 1000 灵魂伴侣</div>
+        </div>
+      </div>
     </div>
-  <div class="cc-sec">
-  <div class="cc-sec-head" onclick="this.parentElement.classList.toggle('open')"><h4>🏆 成就</h4><span class="arrow">▶</span></div>
-  <div class="cc-sec-body">${(gameState.achievements || []).length ? gameState.achievements.map(a => `
-    <div class="cc-row" style="flex-direction:column;align-items:stretch;">
-      <div style="font-size:12px;color:var(--accent-cyan);font-weight:600;">${esc(a.title)}</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${esc(a.desc || '')}</div>
+
+    <div class="cc-sec open" style="border:1px solid var(--border-dim); margin-bottom:12px;">
+      <div class="cc-sec-head" style="background:#fafafa;"><h4>💭 对{{user}}的看法（内心独白）</h4></div>
+      <div class="cc-sec-body" style="display:block; font-size:12px; line-height:1.7; color:var(--text-main); text-indent: 2em;">
+        ${esc(c.opinion)}
+      </div>
     </div>
-  `).join('') : '<div style="color:var(--text-faint);font-size:11px;">还没有获得成就</div>'}</div>
-</div>
+
+    <div class="cc-sec open" style="border:1px solid var(--border-dim);">
+      <div class="cc-sec-head" style="background:#fafafa;"><h4>🤝 与其他人的关系</h4></div>
+      <div class="cc-sec-body" style="display:block; font-size:12px; line-height:1.7; color:var(--text-main); white-space:pre-wrap;">
+        ${esc(c.otherRelations)}
+      </div>
+    </div>
   `;
+  window.openModal('modal-npc');
+};
+
+window.closeNpcDetail = () => {
+  window.closeModal('modal-npc');
 };
 
 window.ccConfirmCreate = () => {
