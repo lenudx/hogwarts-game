@@ -1036,6 +1036,12 @@ window.showMesMenu = (idx) => {
   $('msg-menu-overlay').classList.add('show');
 };
 
+// ★ 核心修复：补上之前被误删的关闭菜单函数
+window.hideMesMenu = (e) => {
+  if (e && e.target !== e.currentTarget) return;
+  $('msg-menu-overlay').classList.remove('show');
+};
+
 // 删除
 window.menuDelete = () => {
   const idx = menuTargetIdx;
