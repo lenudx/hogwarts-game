@@ -127,7 +127,23 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
 .dot:nth-child(2) { animation-delay: 0.18s; } .dot:nth-child(3) { animation-delay: 0.36s; }
 @keyframes bounce { 0%, 60%, 100% { opacity: 0.25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
 @media (min-width: 821px) { .only-mobile { display: none; } #sidebar { position: static; transform: none !important; } }
-@media (max-width: 480px) { .msg.assistant { padding: 12px 13px; font-size: 13px; } #story { padding: 12px; } #options { padding: 0 12px 6px; } header { padding: 4px 8px; } .header-info .h-line { font-size: 10px; } }
+@media (max-width: 480px) { 
+  .msg.assistant { padding: 12px 13px; font-size: 13px; } 
+  #story { padding: 12px; } 
+  #options { padding: 0 12px 6px; } 
+  header { padding: 4px 6px; gap: 4px; } 
+  .header-info .h-line { font-size: 10px; } 
+  
+  /* ★ 核心修复：缩小头部按钮，防止把宠物按钮挤压变形 */
+  .header-left button { padding: 6px 8px; font-size: 14px; }
+  .header-right button { padding: 6px 8px; font-size: 14px; }
+  
+  /* ★ 宠物按钮专属优化：强制不换行，缩小内边距 */
+  .pet-header-btn { padding: 6px 12px !important; font-size: 12px !important; white-space: nowrap; }
+  
+  /* ★ 手机端隐藏“我的宠物”四个字，只保留可爱的🐾图标 */
+  .pet-header-btn .pet-text { display: none; } 
+}
 /* ===== 消息长按菜单 + 版本切换 ===== */
 .msg { position: relative; }
 .msg-ver-badge {
@@ -337,11 +353,11 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     <button class="only-mobile" onclick="window.openModal('modal-map')" title="活点地图">🗺️</button>
   </div>
   
-  <div style="flex:1; display:flex; justify-content:center; align-items:center;">
-    <button class="primary" style="padding:8px 24px; border-radius:20px; font-size:14px;" onclick="window.openModal('modal-pet')">
-      🐾 我的宠物
-    </button>
-  </div>
+<div style="flex:1; display:flex; justify-content:center; align-items:center; min-width: 0;">
+  <button class="primary pet-header-btn" onclick="window.openModal('modal-pet')">
+    🐾 <span class="pet-text">我的宠物</span>
+  </button>
+</div>
   
   <div class="header-right">
     <button onclick="window.openModal('modal-settings')">⚙</button>
