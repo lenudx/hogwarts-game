@@ -3259,11 +3259,14 @@ ${row('社交力', st.social || 10)}
 ${row('思维力', st.intellect || 10)}
 ${row('衣着', st.outfit)}
 ${row('心情', st.mood)}
-${wealthHtml}
-      </div>
-    </div>
+    ${wealthHtml}
+          </div>
+        </div>
+  `;
+};
 
 // ==================== 人物档案系统 ====================
+// 注意：下面这些代码是独立的函数，不能写在 renderCharSidebar 里面！
 if (!gameState.characters) gameState.characters = {};
 if (!gameState.relationsTags) gameState.relationsTags = {};
 
@@ -3337,6 +3340,10 @@ window.openNpcDetail = (name) => {
     </div>
   `;
   window.openModal('modal-npc');
+};
+
+window.closeNpcDetail = () => {
+  window.closeModal('modal-npc');
 };
 
 window.closeNpcDetail = () => {
