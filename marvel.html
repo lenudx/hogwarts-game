@@ -948,7 +948,8 @@ window.menuRegen = async () => {
     const newText = data.narration || data.text || '（无叙述）';
     m.versions.push(newText);
     m.activeVersion = m.versions.length - 1;
-    applyStateChanges(data.state_changes, data.npc_profiles);
+    const npcs = data.npc_profiles || (data.state_changes && data.state_changes.npc_profiles);
+applyStateChanges(data.state_changes, npcs);
     LS.set('mv_display', displayHistory);
     window.renderStory();
     if (data.options) window.renderOptions(data.options);
@@ -1004,6 +1005,25 @@ function applyStateChanges(c, npcProfiles) {
       Object.assign(gameState.characters[n], p);
     }
   }
+  // ★ 兜底：如果 AI 没提供某个在场 NPC 的档案，自动补一个基础档案
+  if (Array.isArray(gameState.actors)) {
+    gameState.actors.forEach(a => {
+      if (!a || a === '你' || a === gameState.name) return;
+      if (!gameState.characters[a]) {
+        gameState.characters[a] = { name: a };
+      }
+      const c = gameState.characters[a];
+      if (!c.gender || c.gender === '待补充') c.gender = '不详';
+      if (!c.age || c.age === '待补充') c.age = '不详';
+      if (!c.identity || c.identity === '待补充') c.identity = '身份待揭示';
+      if (!c.outfit || c.outfit === '待补充') c.outfit = '衣着未详述';
+      if (!c.opinion || c.opinion === '暂时还没有深入了解，不知全貌。') {
+        c.opinion = `初见。${gameState.name || '你'}在${gameState.scene || '此地'}出现，我还没看透这个人。`;
+      }
+      if (!c.otherRelations || c.otherRelations === '暂无信息') c.otherRelations = '暂无特别关系';
+    });
+  }
+
   LS.set('mv_state', gameState);
   window.renderStatus();
 }
@@ -1039,6 +1059,16 @@ finalPrompt += `当前玩家的时代是：${tl.name}（${tl.range}）。时代�
 finalPrompt += `当前玩家的身份是：${identityStr}。\n`;
 finalPrompt += `【警告】你绝对不能引入不属于这个时代的角色、物品或事件！请严格按照该时代的真实背景来生成剧情！\n\n`;
 
+// ★ 强制正文长度 + NPC档案格式（不依赖预设，硬编码）
+finalPrompt += `【强制输出要求 · 必须严格遵守】\n`;
+finalPrompt += `1. narration 正文字数必须达到 600~1000 字，绝对不允许少于 600 字！把环境、动作、对话、感官细节、NPC 微表情全部写出来。不要偷懒。\n`;
+finalPrompt += `2. 对话必须占正文 40% 以上，允许 NPC 之间也互相说话。\n`;
+finalPrompt += `3. 必须在 JSON 顶层输出 npc_profiles 字段（与 narration、state_changes 同级，不是放在 state_changes 里面！）。\n`;
+finalPrompt += `4. npc_profiles 必须覆盖当前场景所有在场 NPC（actors 列表里除了"你"以外的每个人），一个都不能少。\n`;
+finalPrompt += `5. 每个 NPC 必须填写：gender（性别）、age（年岁，可写"约XX岁"或"不详"）、identity（身份/头衔）、outfit（当前衣着，20字以内）、opinion（对玩家的看法，不少于80字，第一人称内心独白，要结合好感度和最近互动）、otherRelations（与其他角色的关系）。\n`;
+finalPrompt += `6. 即使这个 NPC 刚刚出场、信息不足，也必须根据原著设定和当前剧情合理推测补全，绝对不允许留空或写"待补充"。\n\n`;
+finalPrompt += `【正确 JSON 示例】\n`;
+finalPrompt += `{"narration":"...","state_changes":{...},"npc_profiles":{"希尔达":{"gender":"女","age":"约30岁","identity":"阿斯加德皇家训练场教官","outfit":"银色轻甲与蓝色披风","opinion":"这个新来的倒是有点意思，不急着动手而是先打听情报，比那些只会逞能的毛头小子强。不过光说不练假把式，我倒要看看他拿剑的手是不是一样稳。","otherRelations":"索尔/敬佩其勇武、洛基/保持距离"}},"options":[...]}\n\n`;
 // ★ 时间线校准：按当前游戏年份过滤已发生 / 未发生事件
 if (tl.events && tl.events.length > 0) {
   const currentYear = ccGetCurrentYear();
@@ -1274,7 +1304,8 @@ window.sendAction = async (text) => {
       if (sysMsg.length > 0) window.pushDisplay('system', '📌 ' + sysMsg.join(' | '));
     }
 
-    applyStateChanges(data.state_changes, data.npc_profiles);
+    const npcs = data.npc_profiles || (data.state_changes && data.state_changes.npc_profiles);
+applyStateChanges(data.state_changes, npcs);
 
     if (Array.isArray(data.achievement_add)) {
       data.achievement_add.forEach(a => {
