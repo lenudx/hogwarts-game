@@ -364,7 +364,10 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
       <div class="h-line"><span id="ui-header-year">--</span> · <span id="ui-header-scene">未知</span></div>
       <div class="h-line"><span class="h-label">在场：</span><span id="ui-header-actors">你</span></div>
     </div>
-    <div class="header-right">
+   <div class="header-right">
+  <button onclick="window.openShop()" title="商店">🛒</button>
+  <button onclick="window.openModal('modal-settings')">⚙</button>
+</div>
       <button onclick="window.openModal('modal-settings')">⚙</button>
     </div>
   </header>
@@ -413,6 +416,19 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   </div>
 </div>
 
+<!-- 商店 -->
+<div class="modal" id="modal-shop">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head">
+      <h3>🛒 黑市与商店</h3>
+      <div style="display:flex;gap:6px;">
+        <button class="primary" onclick="window.refreshShop()" style="padding:5px 10px;font-size:11px;">🔄 刷新 ($10)</button>
+        <button onclick="window.closeModal('modal-shop')">关闭</button>
+      </div>
+    </div>
+    <div class="modal-body" id="shop-body"></div>
+  </div>
+</div>
 <!-- 设置 -->
 <div class="modal" id="modal-settings">
   <div class="modal-box">
@@ -1784,6 +1800,88 @@ window.importSaveFile = (e) => {
   e.target.value = '';
 };
 
+// ==================== 商店数据 ====================
+const SHOP_DATA = [
+  {
+    category: '日常补给', icon: '💊',
+    items: [
+      { name: '急救包', desc: '恢复少量生命值。', price: 30, effect: { hp: 20 } },
+      { name: '医用酒精/绷带', desc: '基础止血。', price: 10, effect: { hp: 5 } },
+      { name: '处方止痛药', desc: '临时屏蔽痛觉，提升耐力。', price: 60, effect: { energy: 15 } },
+      { name: '变种人血清 / 绝境病毒', desc: '瞬间满血或觉醒能力，有失控风险。', price: 15000, effect: { hp: 100 } },
+      { name: '廉价连帽衫与口罩', desc: '降低暴露度。', price: 30 },
+      { name: '假身份证 / 驾照', desc: '黑市产物，逃避神盾局追踪。', price: 600 },
+      { name: '变色伪装服 / 光学迷彩', desc: '神盾局或九头蛇科技。', price: 12000 },
+      { name: '一次性手机 (Burner Phone)', desc: '防止通话被监听。', price: 40 },
+      { name: '能量饮料 / 咖啡', desc: '恢复精神值。', price: 8, effect: { energy: 10 } },
+      { name: '曼哈顿单身公寓月租', desc: '每月自动扣款，没钱会露宿街头。', price: 2000 }
+    ]
+  },
+  {
+    category: '兵器军火', icon: '🔫',
+    items: [
+      { name: '警用甩棍', desc: '基础近战武器。', price: 80 },
+      { name: '防暴盾', desc: '增加格挡概率。', price: 150 },
+      { name: '黑市手枪', desc: '街头常见武器。', price: 500 },
+      { name: '黑市左轮', desc: '威力大，弹夹小。', price: 700 },
+      { name: '军用突击步枪', desc: '极易引来纽约警局。', price: 2000 },
+      { name: '凯夫拉防弹衣', desc: '增加护甲值。', price: 1000 },
+      { name: '战术腰带与抓钩', desc: '增加行动判定成功率。', price: 300 },
+      { name: '变种人抑制项圈', desc: '压制自身或敌人暴走。', price: 12000 },
+      { name: '电磁脉冲手雷', desc: '对付科技侧敌人。', price: 1000 }
+    ]
+  },
+  {
+    category: '科技装备', icon: '🛠️',
+    items: [
+      { name: '无人机零件 / 改装遥控车', desc: '侦查用。', price: 600 },
+      { name: '微型窃听器 / 追踪器', desc: '隐秘监听。', price: 300 },
+      { name: '军用级解密软件', desc: '黑入神盾局或企业数据库。', price: 3000 },
+      { name: '自制蛛丝发射器零件', desc: '科技天才出身专属。', price: 200 },
+      { name: '二手军事外骨骼', desc: '大幅提升力量，但行动迟缓。', price: 30000, effect: { strength: 20, agility: -5 } },
+      { name: '仿制方舟反应炉', desc: '极度危险，可能引发爆炸。', price: 100000 },
+      { name: '地下情报网线索', desc: '获得下一个任务或反派弱点的提示。', price: 2000 }
+    ]
+  },
+  {
+    category: '魔法神秘', icon: '🔮',
+    items: [
+      { name: '圣水 / 驱魔符咒', desc: '对恶魔或亡灵类敌人有奇效。', price: 300 },
+      { name: '神秘草药 / 卡玛泰姬特制茶', desc: '恢复精神值。', price: 100, effect: { energy: 20 } },
+      { name: '灵魂契约卷轴', desc: '可复活一次，永久扣除某项属性。', price: 15000 },
+      { name: '神秘学入门读物', desc: '了解魔法世界。', price: 800 },
+      { name: '低阶魔法斗篷 / 悬浮斗篷仿品', desc: '增加闪避判定。', price: 5000 },
+      { name: '维度探测器', desc: '预警空间异常。', price: 5000 },
+      { name: '阿戈摩托之眼仿品', desc: '能识破幻术。', price: 25000 }
+    ]
+  },
+  {
+    category: '载具资产', icon: '🚗',
+    items: [
+      { name: '二手摩托车', desc: '代步工具。', price: 3000 },
+      { name: '二手轿车', desc: '更舒适。', price: 8000 },
+      { name: '改装装甲车', desc: '防护力极强。', price: 80000 },
+      { name: '昆式战机', desc: '需复仇者声望达到崇拜。', price: 1500000 },
+      { name: '安全屋购买', desc: '一个稳定的藏身点。', price: 200000 },
+      { name: '街头酒吧 / 当铺', desc: '每周产生被动收入。', price: 300000 }
+    ]
+  },
+  {
+    category: '特殊彩蛋', icon: '✨',
+    items: [
+      { name: '超级士兵血清', desc: '二战时期极度稀有。', price: 10000, timeline: 'wwii' },
+      { name: '霍华德·斯塔克原型盾牌', desc: '二战时期原型。', price: 5000, timeline: 'wwii' },
+      { name: '乌鲁金属碎片', desc: '来自阿斯加德。', price: 50000, timeline: 'multiverse' },
+      { name: '阿斯加德啤酒', desc: '喝一杯。', price: 500, timeline: 'multiverse' },
+      { name: '宇宙灵球', desc: '宇宙篇专属。', price: 1000000, timeline: 'multiverse' },
+      { name: '能量电池', desc: '星际通行货币。', price: 5000, timeline: 'multiverse' },
+      { name: '星际翻译器', desc: '与外星种族交流。', price: 3000, timeline: 'multiverse' },
+      { name: '编剧修改器', desc: '强行重写一句剧情。', price: 99999 }
+    ]
+  }
+];
+
+let shopExpanded = {};
 // ==================== 兑换码 ====================
 const REDEEM_CODES = {
   'Marvel': { money: 10000, desc: '漫威创始人的馈赠' },
@@ -1870,6 +1968,130 @@ window.redeemCode = () => {
   status.innerHTML = '<span style="color:var(--danger);">❌ 无效的卡密</span>';
 };
 
+// ==================== 商店逻辑 ====================
+window.openShop = () => {
+  if (!gameState.shops) {
+    gameState.shops = JSON.parse(JSON.stringify(SHOP_DATA));
+    gameState.shopRefreshCount = 5;
+    gameState.lastShopRefreshDate = '';
+    LS.set('mv_state', gameState);
+  }
+  window.renderShop();
+  window.openModal('modal-shop');
+};
+
+window.renderShop = () => {
+  const box = $('shop-body');
+  if (!box) return;
+
+  const currentDate = (gameState.time || '').split('·')[0].trim();
+  if (gameState.lastShopRefreshDate !== currentDate) {
+    gameState.shopRefreshCount = 5;
+    gameState.lastShopRefreshDate = currentDate;
+    LS.set('mv_state', gameState);
+  }
+
+  const money = gameState.stats.money || 0;
+  const tl = gameState.charCard?.timeline || 'modern';
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-dim);margin-bottom:10px;padding:8px 10px;background:var(--bg-light);border-radius:8px;">
+      <span>今日剩余刷新：<b style="color:var(--accent-gold);">${gameState.shopRefreshCount || 0}</b> / 5 次</span>
+      <span>钱包：<b style="color:var(--accent-gold);">$${money.toLocaleString()}</b></span>
+    </div>
+  `;
+
+  gameState.shops.forEach((cat, cIdx) => {
+    const items = cat.items.filter(it => !it.timeline || it.timeline === tl);
+    if (items.length === 0) return;
+    const isOpen = !!shopExpanded[cIdx];
+
+    html += `
+      <div style="border:1px solid var(--border-dim);border-radius:12px;margin-bottom:8px;overflow:hidden;background:var(--bg-mid);">
+        <div onclick="window.toggleShopCategory(${cIdx})" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg-light);cursor:pointer;user-select:none;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:16px;">${cat.icon}</span>
+            <span style="font-size:13px;font-weight:600;color:var(--text-main);">${cat.category}</span>
+            <span style="font-size:11px;color:var(--text-dim);">(${items.length})</span>
+          </div>
+          <span style="color:var(--text-dim);font-size:11px;transition:transform 0.2s;transform:rotate(${isOpen ? 90 : 0}deg);">▶</span>
+        </div>
+        ${isOpen ? `<div style="padding:10px;">${items.map(it => {
+          const canAfford = money >= it.price;
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--bg-light);border-radius:8px;margin-bottom:6px;gap:8px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;color:var(--text-main);font-weight:600;">${esc(it.name)}</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.5;">${esc(it.desc)}</div>
+                <div style="font-size:12px;color:${canAfford ? 'var(--accent-gold)' : 'var(--danger)'};margin-top:4px;font-weight:600;">$${it.price.toLocaleString()}</div>
+              </div>
+              <button class="${canAfford ? 'primary' : ''}" style="padding:6px 12px;font-size:11px;flex-shrink:0;" ${canAfford ? '' : 'disabled'} onclick="window.buyShopItem(${cIdx}, '${esc(it.name).replace(/'/g, "\\'")}')">${canAfford ? '购买' : '缺钱'}</button>
+            </div>
+          `;
+        }).join('')}</div>` : ''}
+      </div>
+    `;
+  });
+
+  box.innerHTML = html;
+};
+
+window.toggleShopCategory = (idx) => {
+  shopExpanded[idx] = !shopExpanded[idx];
+  window.renderShop();
+};
+
+window.buyShopItem = (catIdx, itemName) => {
+  const cat = gameState.shops[catIdx];
+  if (!cat) return;
+  const item = cat.items.find(x => x.name === itemName);
+  if (!item) return;
+  if (gameState.stats.money < item.price) return alert('金钱不够！');
+
+  gameState.stats.money -= item.price;
+
+  if (item.effect) {
+    const st = gameState.stats;
+    if (item.effect.hp) st.hp = Math.min(st.maxHp, st.hp + item.effect.hp);
+    if (item.effect.energy) st.energy = Math.min(st.maxEnergy, st.energy + item.effect.energy);
+    if (item.effect.strength) st.strength = Math.max(1, st.strength + item.effect.strength);
+    if (item.effect.agility) st.agility = Math.max(1, st.agility + item.effect.agility);
+    if (item.effect.intellect) st.intellect = Math.max(1, st.intellect + item.effect.intellect);
+    if (item.effect.charisma) st.charisma = Math.max(1, st.charisma + item.effect.charisma);
+  }
+
+  if (!gameState.inventory.includes(item.name)) gameState.inventory.push(item.name);
+  cat.items = cat.items.filter(x => x.name !== itemName);
+
+  LS.set('mv_state', gameState);
+  window.renderShop();
+  window.renderStatus();
+  window.pushDisplay('system', `✅ 购买了【${item.name}】，花费 $${item.price.toLocaleString()}`);
+};
+
+window.refreshShop = () => {
+  const currentDate = (gameState.time || '').split('·')[0].trim();
+  if (gameState.lastShopRefreshDate !== currentDate) {
+    gameState.shopRefreshCount = 5;
+    gameState.lastShopRefreshDate = currentDate;
+  }
+  if (gameState.shopRefreshCount <= 0) {
+    return alert('今天的刷新次数已用完（每天最多 5 次）。');
+  }
+  if (gameState.stats.money < 10) {
+    return alert('金钱不够！刷新商店需要 $10。');
+  }
+
+  gameState.stats.money -= 10;
+  gameState.shopRefreshCount--;
+
+  gameState.shops = JSON.parse(JSON.stringify(SHOP_DATA));
+
+  LS.set('mv_state', gameState);
+  window.renderShop();
+  window.renderStatus();
+  window.pushDisplay('system', `🔄 商店已刷新，花费 $10。今日剩余 ${gameState.shopRefreshCount} 次`);
+};
 window.resetAllData = () => {
   if (!confirm('⚠️ 确定要清空所有本地缓存吗？这将删除所有 API、世界书、预设和游戏进度！')) return;
   localStorage.clear();
