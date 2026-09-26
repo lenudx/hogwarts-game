@@ -2424,6 +2424,7 @@ function buildSystemPrompt(extra='') {
 - 格式：{"narration": "...", "state_changes": {...}, "options": [...]}
 - narration 正文使用第二人称“你”叙述，沉浸式、有画面感。
 - options 提供 2~4 个符合当前情境的短期行动建议，每条不超过 15 字。
+`;
 
 // ========== 特殊添加：年份与称呼规则 ==========
 const currentYear = ccGetCurrentYear();
@@ -2452,11 +2453,6 @@ if (addressRules) {
   finalPrompt += `\n【极其重要的时代背景与称呼规则】\n当前游戏年份：${currentYear}年，你是${playerGrade}年级学生。\n${addressRules}\n`;
   finalPrompt += `【警告】在任何剧情、对话中，请绝对不要出现称呼错乱的情况！若用户没提名称，请根据上述规则在叙述和对话中自然地带入称呼。\n`;
 }
-
-if (addressRules) {
-          finalPrompt += `\n【极其重要的时代背景与称呼规则】\n当前游戏年份：${currentYear}年，你是${playerGrade}年级学生。\n${addressRules}\n`;
-          finalPrompt += `【警告】在任何剧情、对话中，请绝对不要出现称呼错乱的情况！若用户没提名称，请根据上述规则在叙述和对话中自然地带入称呼。\n`;
-        }
 
         finalPrompt += `
 【新增规则：好感度与关系状态】
