@@ -1204,7 +1204,8 @@ window.menuRegen = async () => {
               }
             }
           }
-          gameState.relations[charName] = (gameState.relations[charName] || 0) + finalVal;
+          // ★ 核心修复：限制好感度最高为1000，防止溢出
+gameState.relations[charName] = Math.min(1000, (gameState.relations[charName] || 0) + finalVal);
         }
       }
       if (Array.isArray(c.actors)) gameState.actors = c.actors;
@@ -2414,7 +2415,18 @@ function matchWorldbook(text) {
 }
 function formatState() {
   const s = gameState, st = s.stats;
-  const relStr = Object.entries(s.relations).map(([k,v])=>`${k}(${v>=0?'+':''}${v})`).join('、')||'无';
+  const relStr = Object.entries(s.relations).map(([k,v])=>{
+  const vNum = Number(v) || 0;
+  let level = '朋友';
+  if (vNum >= 1000) level = '灵魂伴侣';
+  else if (vNum >= 900) level = '灵魂知己';
+  else if (vNum >= 800) level = '订婚';
+  else if (vNum >= 700) level = '挚爱';
+  else if (vNum >= 500) level = '伴侣';
+  else if (vNum >= 260) level = '知己';
+  else if (vNum >= 150) level = '暧昧期';
+  return `${k}(${level} ${vNum}/1000)`;
+}).join('、')||'无';
   return `姓名：${s.name}\n性别：${s.gender||'未定'}\n学院：${s.house}\n年级：${s.year}年级\n当前场景：${s.scene}\n游戏内时间：${s.time}\n在场人物：${(s.actors||['你']).join('、')}\n魔力：${Math.round(st.mana)}/${st.maxMana}\n体力：${Math.round(st.stamina)}/${st.maxStamina}\n财产：${st.galleons||0} 金加隆、${st.sickles||0} 银西可、${st.knuts||0} 铜纳特\n衣着：${st.outfit||'（未记录）'}\n心情：${st.mood||'（未记录）'}\n随身物品：${s.inventory.join('、')||'无'}\n人物关系：${relStr}`;
 }
 function buildSystemPrompt(extra='') {
@@ -2524,23 +2536,19 @@ if (addressRules) {
 }
 
         finalPrompt += `
-【新增规则：好感度与关系状态】
-1. 好感度数值区间对应关系：0-150(朋友)、150(暧昧)、150-260(表白期)、260(知己)、500(伴侣)、700(挚爱)、800(订婚)、900(灵魂知己)、1000(灵魂伴侣)。请在描写剧情时，严格遵守当前好感度对应的关系状态，不要越界。
-2. 特殊剧情触发：当好感度处于150-260之间，且玩家主动表白或NPC主动表白时，请基于【百分之七十概率答应，百分之三十概率拒绝】这个硬性规则来推动剧情，不要自己随意决定。
-3. 特殊关系标签：剧情发展到一定阶段（如地下恋、异地恋、包办婚姻、假扮情侣、分手、和好、复合等），需在 state_changes 中提供 "relation_tags" 字段，格式如："relation_tags": {"角色名": ["地下恋", "异地恋"]}。前端会展示这些特殊关系。
-4. 角色档案更新：在 state_changes 中提供 "npc_profiles" 字段，格式如下：
-"npc_profiles": {
-  "角色名": {
-    "gender": "性别",
-    "age": "年岁",
-    "birthday": "生日",
-    "identity": "身份",
-    "outfit": "衣着（20字以内）",
-    "opinion": "对{{user}}的看法（不少于100字，要符合角色性格，出于个人内心直观意识，不刻板，不要复述玩家行为，而是表达内心的真实想法和评估）",
-    "otherRelations": "与其他人物的关系，如：马尔福/死对头、邓布利多/敬畏"
-  }
-}
-注意：只有当角色信息有更新时才提供。opinion 的字数一定要够，要有深度。
+finalPrompt += `
+【极其重要的好感度与态度规则（必须严格遵守）】
+1. 好感度数值区间对应关系：0-150(朋友)、150(暧昧)、150-260(表白期)、260(知己)、500(伴侣)、700(挚爱)、800(订婚)、900(灵魂知己)、1000(灵魂伴侣)。
+2. 【核心态度转变】：NPC对你的称呼、语气、动作、距离感必须严格根据当前好感度等级发生变化！
+   - 0-150(朋友)：礼貌、客气、保持社交距离。
+   - 150-260(暧昧)：开始关注你的细节，偶尔有不经意的身体触碰，语气变温柔。
+   - 260-500(知己/伴侣)：绝对信任，愿意分享秘密，语言中有明显的亲昵感。
+   - 500-800(挚爱/订婚)：深情，主动保护你，会因为你和其他异性互动而吃醋，有亲密的身体接触。
+   - 800-1000(灵魂知己/伴侣)：生死相托，极其黏人，展现极致的爱与占有欲。
+3. 【强制逻辑】：当NPC对你的好感度达到一定阶段时，你必须在正文字数中体现出这种亲密感。禁止对高好感度的NPC使用冷漠、疏离的描写！
+4. 特殊剧情触发：当好感度处于150-260之间，且玩家主动表白或NPC主动表白时，请基于【百分之七十概率答应，百分之三十概率拒绝】这个硬性规则来推动剧情，不要自己随意决定。
+5. 特殊关系标签：剧情发展到一定阶段（如地下恋、异地恋、包办婚姻、假扮情侣、分手、和好、复合等），需在 state_changes 中提供 "relation_tags" 字段，格式如："relation_tags": {"角色名": ["地下恋", "异地恋"]}。前端会展示这些特殊关系。
+6. 【最终警告】：好感度最高为 1000，绝对不可超出。当好感度达到 1000（灵魂伴侣）时，NPC必须表现出极致的灵魂羁绊，不再仅仅是普通朋友的态度。
 `;
 
   // ========== 第三部分：预设注入（你原有的代码，保留） ==========
@@ -2734,7 +2742,8 @@ if (data.state_changes) {
         }
       }
     }
-    gameState.relations[charName] = (gameState.relations[charName] || 0) + finalVal;
+    // ★ 核心修复：限制好感度最高为1000，防止溢出
+gameState.relations[charName] = Math.min(1000, (gameState.relations[charName] || 0) + finalVal);
   }
 }
       if (Array.isArray(c.actors)) gameState.actors = c.actors;
