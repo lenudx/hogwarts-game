@@ -751,10 +751,40 @@ window.renderStatus = () => {
 };
 
 // ==================== 消息渲染 ====================
+function formatNarration(text) {
+  if (!text) return '';
+  let t = text.replace(/\r\n/g, '\n');
+
+  // 兜底：如果 AI 完全没有换行，按句号强行切段（避开引号内的句号）
+  if (!t.includes('\n')) {
+    t = t.replace(/([。！？])(?=[^”」』])/g, '$1\n');
+  }
+
+  let lines = t.split('\n').filter(l => l.trim() !== '');
+  let html = '';
+
+  lines.forEach(line => {
+    let l = line.trim();
+    // 识别对话：以【名字】开头，或者直接是引号开头
+    let isDialog = /^【.*?】\s*[“「『]/.test(l) || /^[“「『]/.test(l);
+
+    if (isDialog) {
+      html += `<div class="dialogue-bubble">${esc(l)}</div>`;
+    } else {
+      html += `<div class="narr-paragraph">${esc(l)}</div>`;
+    }
+  });
+  return html;
+}
+
 function makeMsgEl(role, text) {
   const d = document.createElement('div');
   d.className = 'msg ' + role;
-  d.textContent = text;
+  if (role === 'assistant') {
+    d.innerHTML = formatNarration(text);
+  } else {
+    d.textContent = text;
+  }
   return d;
 }
 function getMsgText(m) {
@@ -1082,11 +1112,21 @@ finalPrompt += `当前玩家的时代是：${tl.name}（${tl.range}）。时代�
 finalPrompt += `当前玩家的身份是：${identityStr}。\n`;
 finalPrompt += `【警告】你绝对不能引入不属于这个时代的角色、物品或事件！请严格按照该时代的真实背景来生成剧情！\n\n`;
 
-// ★ 强制正文长度 + NPC档案格式（不依赖预设，硬编码）
+// ★ 时间线校准：按当前游戏年份过滤已发生 / 未发生事件
+const currentYear = ccGetCurrentYear();
+let pastEvents = [], futureEvents = [];
+if (tl.events && tl.events.length > 0) {
+  tl.events.forEach(ev => {
+    if (typeof ev.y === 'number' && ev.y > currentYear) futureEvents.push(ev);
+    else pastEvents.push(ev);
+  });
+}
+
+// ★ 强制正文长度 + NPC档案格式
 finalPrompt += `【强制输出要求 · 必须严格遵守】\n`;
 finalPrompt += `1. narration 正文字数必须达到 1000~1500 字，绝对不允许少于 600 字。\n`;
 finalPrompt += `2. 【排版铁律】必须用换行符 \\n 把叙述和对话完全隔开！\n`;
-finalPrompt += `   - 叙述段落之间必须空行。\n`;
+finalPrompt += `   - 叙述段落之间必须空一行。\n`;
 finalPrompt += `   - 对话必须另起一行，且格式严格为：【角色名】“台词内容”。绝对禁止把对话塞进叙述段落的中间！\n`;
 finalPrompt += `   - 连续对话可以每句一行，用不同的【角色名】区分。\n`;
 finalPrompt += `3. 对话必须占正文 40% 以上，允许 NPC 之间也互相说话。\n`;
@@ -1096,26 +1136,26 @@ finalPrompt += `6. 每个 NPC 必须填写：gender、age、identity、outfit、
 finalPrompt += `【正确 JSON 示例】\n`;
 finalPrompt += `{"narration":"阳光直射在训练场。\\n\\n【哈雷克】“你的步子太重了。”\\n\\n他调整了一下站姿，重新握紧剑柄。","state_changes":{...},"npc_profiles":{"哈雷克":{"gender":"男","age":"约25岁","identity":"皇家卫队成员","outfit":"银色护甲","opinion":"这小子基础太差，但肯练。","otherRelations":"维达/训练场死对头"}},"options":[...]}\n\n`;
 
-  if (pastEvents.length > 0) {
-    finalPrompt += `【时间线校准 · 已发生的真实历史事件】\n`;
-    finalPrompt += `当前游戏内时间是 ${currentYear} 年。以下事件已经在这个世界发生过，可作为背景、传闻、回忆或既成事实出现：\n`;
-    pastEvents.forEach(ev => { finalPrompt += `  · ${ev.t} — ${ev.e}\n`; });
-    finalPrompt += `\n`;
-  }
-
-  if (futureEvents.length > 0) {
-    finalPrompt += `【时间线校准 · 尚未发生的事件（严禁提前引入）】\n`;
-    finalPrompt += `以下事件在当前年份尚未发生，绝对不能在剧情中让它们发生，也不可以让对应角色提前登场：\n`;
-    futureEvents.forEach(ev => { finalPrompt += `  · ${ev.t} — ${ev.e}\n`; });
-    finalPrompt += `\n`;
-  }
-
-  finalPrompt += `【时间线校准 · 强制规则】\n`;
-  finalPrompt += `1. 玩家的身份、能力、人际关系必须与当前年份相符。\n`;
-  finalPrompt += `2. 剧情中出现的 NPC 必须在当前年份已经存在且年龄合理。\n`;
-  finalPrompt += `3. 不得提前引入未来才诞生的角色（如 2008 年之前的托尼·斯塔克不是钢铁侠，2012 年前的雷神尚未到访地球）。\n`;
-  finalPrompt += `4. 不得提前使用未来才出现的科技、武器或设定。\n\n`;
+// ★ 时间线校准输出
+if (pastEvents.length > 0) {
+  finalPrompt += `【时间线校准 · 已发生的真实历史事件】\n`;
+  finalPrompt += `当前游戏内时间是 ${currentYear} 年。以下事件已经在这个世界发生过，可作为背景、传闻、回忆或既成事实出现：\n`;
+  pastEvents.forEach(ev => { finalPrompt += `  · ${ev.t} — ${ev.e}\n`; });
+  finalPrompt += `\n`;
 }
+
+if (futureEvents.length > 0) {
+  finalPrompt += `【时间线校准 · 尚未发生的事件（严禁提前引入）】\n`;
+  finalPrompt += `以下事件在当前年份尚未发生，绝对不能在剧情中让它们发生，也不可以让对应角色提前登场：\n`;
+  futureEvents.forEach(ev => { finalPrompt += `  · ${ev.t} — ${ev.e}\n`; });
+  finalPrompt += `\n`;
+}
+
+finalPrompt += `【时间线校准 · 强制规则】\n`;
+finalPrompt += `1. 玩家的身份、能力、人际关系必须与当前年份相符。\n`;
+finalPrompt += `2. 剧情中出现的 NPC 必须在当前年份已经存在且年龄合理。\n`;
+finalPrompt += `3. 不得提前引入未来才诞生的角色（如 2008 年之前的托尼·斯塔克不是钢铁侠，2012 年前的雷神尚未到访地球）。\n`;
+finalPrompt += `4. 不得提前使用未来才出现的科技、武器或设定。\n\n`;
 
   finalPrompt += `
 【核心创作铁律 · 必须遵守】
