@@ -113,6 +113,29 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   padding: 12px 16px; color: #b9d4ff;
   box-shadow: 0 4px 14px rgba(0,0,0,0.2);
 }
+/* ===== 叙述与对话的排版 ===== */
+.narr-paragraph {
+  text-indent: 2em; /* 开头空两格 */
+  margin-bottom: 12px; /* 段落间距 */
+  line-height: 1.8;
+  color: var(--text-main);
+  font-size: 14px;
+}
+.narr-paragraph:last-child { margin-bottom: 0; }
+
+.dialogue-bubble {
+  margin: 12px 0;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid var(--accent-gold); /* 左侧金色竖线，像气泡 */
+  border-radius: 8px;
+  font-style: italic;
+  color: #d1d8e6;
+  line-height: 1.7;
+  text-indent: 0; /* 对话不用缩进 */
+  font-size: 14px;
+}
+.dialogue-bubble:last-child { margin-bottom: 0; }
 .msg.system {
   margin: 0 auto; text-align: center; font-size: 12px; color: var(--text-dim);
   background: rgba(255,255,255,0.03); border: 1px solid var(--border-dim);
@@ -1061,22 +1084,17 @@ finalPrompt += `【警告】你绝对不能引入不属于这个时代的角色�
 
 // ★ 强制正文长度 + NPC档案格式（不依赖预设，硬编码）
 finalPrompt += `【强制输出要求 · 必须严格遵守】\n`;
-finalPrompt += `1. narration 正文字数必须达到 600~1000 字，绝对不允许少于 600 字！把环境、动作、对话、感官细节、NPC 微表情全部写出来。不要偷懒。\n`;
-finalPrompt += `2. 对话必须占正文 40% 以上，允许 NPC 之间也互相说话。\n`;
-finalPrompt += `3. 必须在 JSON 顶层输出 npc_profiles 字段（与 narration、state_changes 同级，不是放在 state_changes 里面！）。\n`;
-finalPrompt += `4. npc_profiles 必须覆盖当前场景所有在场 NPC（actors 列表里除了"你"以外的每个人），一个都不能少。\n`;
-finalPrompt += `5. 每个 NPC 必须填写：gender（性别）、age（年岁，可写"约XX岁"或"不详"）、identity（身份/头衔）、outfit（当前衣着，20字以内）、opinion（对玩家的看法，不少于80字，第一人称内心独白，要结合好感度和最近互动）、otherRelations（与其他角色的关系）。\n`;
-finalPrompt += `6. 即使这个 NPC 刚刚出场、信息不足，也必须根据原著设定和当前剧情合理推测补全，绝对不允许留空或写"待补充"。\n\n`;
+finalPrompt += `1. narration 正文字数必须达到 1000~1500 字，绝对不允许少于 600 字。\n`;
+finalPrompt += `2. 【排版铁律】必须用换行符 \\n 把叙述和对话完全隔开！\n`;
+finalPrompt += `   - 叙述段落之间必须空行。\n`;
+finalPrompt += `   - 对话必须另起一行，且格式严格为：【角色名】“台词内容”。绝对禁止把对话塞进叙述段落的中间！\n`;
+finalPrompt += `   - 连续对话可以每句一行，用不同的【角色名】区分。\n`;
+finalPrompt += `3. 对话必须占正文 40% 以上，允许 NPC 之间也互相说话。\n`;
+finalPrompt += `4. 必须在 JSON 顶层输出 npc_profiles 字段（与 narration、state_changes 同级，不是放在 state_changes 里面！）。\n`;
+finalPrompt += `5. npc_profiles 必须覆盖当前场景所有在场 NPC（actors 列表里除了"你"以外的每个人），一个都不能少。\n`;
+finalPrompt += `6. 每个 NPC 必须填写：gender、age、identity、outfit、opinion（不少于80字）、otherRelations。就算信息不足也要合理推测补全，绝对不能写"待补充"。\n\n`;
 finalPrompt += `【正确 JSON 示例】\n`;
-finalPrompt += `{"narration":"...","state_changes":{...},"npc_profiles":{"希尔达":{"gender":"女","age":"约30岁","identity":"阿斯加德皇家训练场教官","outfit":"银色轻甲与蓝色披风","opinion":"这个新来的倒是有点意思，不急着动手而是先打听情报，比那些只会逞能的毛头小子强。不过光说不练假把式，我倒要看看他拿剑的手是不是一样稳。","otherRelations":"索尔/敬佩其勇武、洛基/保持距离"}},"options":[...]}\n\n`;
-// ★ 时间线校准：按当前游戏年份过滤已发生 / 未发生事件
-if (tl.events && tl.events.length > 0) {
-  const currentYear = ccGetCurrentYear();
-  const pastEvents = [], futureEvents = [];
-  tl.events.forEach(ev => {
-    if (typeof ev.y === 'number' && ev.y > currentYear) futureEvents.push(ev);
-    else pastEvents.push(ev);
-  });
+finalPrompt += `{"narration":"阳光直射在训练场。\\n\\n【哈雷克】“你的步子太重了。”\\n\\n他调整了一下站姿，重新握紧剑柄。","state_changes":{...},"npc_profiles":{"哈雷克":{"gender":"男","age":"约25岁","identity":"皇家卫队成员","outfit":"银色护甲","opinion":"这小子基础太差，但肯练。","otherRelations":"维达/训练场死对头"}},"options":[...]}\n\n`;
 
   if (pastEvents.length > 0) {
     finalPrompt += `【时间线校准 · 已发生的真实历史事件】\n`;
