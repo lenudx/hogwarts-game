@@ -368,8 +368,6 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
   <button onclick="window.openShop()" title="商店">🛒</button>
   <button onclick="window.openModal('modal-settings')">⚙</button>
 </div>
-      <button onclick="window.openModal('modal-settings')">⚙</button>
-    </div>
   </header>
 
   <main>
@@ -2601,8 +2599,8 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.onerror = function(msg, url, line) {
-  console.error("发生错误: " + msg + "\n行号: " + line);
-  return false;
+  console.error("❌ 错误: " + msg + " | 行号: " + line);
+  // 不 return false，让浏览器也记录
 };
 </script>
 </body>
