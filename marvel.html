@@ -1337,9 +1337,6 @@ window.newWorldbook = () => {
   window.renderWorldbookSelect();
   window.renderWorldList();
 };
-window.renderWorldbookSelect();
-  window.renderWorldList();
-};
 window.deleteWorldbook = () => {
   if (worldbooks.length <= 1) return alert('至少保留一本世界书');
   if (!confirm('确定删除当前世界书？')) return;
