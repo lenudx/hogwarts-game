@@ -469,6 +469,17 @@ main { flex: 1; display: flex; overflow: hidden; position: relative; }
     <div class="modal-body" id="pet-body" style="padding:20px; text-align:center;"></div>
   </div>
 </div>
+<div class="modal" id="modal-npc">
+  <div class="modal-box" style="max-width:560px; background:var(--bg-mid);">
+    <div class="modal-head">
+      <h3 id="npc-modal-title">📇 人物档案</h3>
+      <button onclick="window.closeNpcDetail()">返回</button>
+    </div>
+    <div class="modal-body" id="npc-modal-body" style="padding:16px;">
+      <!-- 内容由 JS 动态生成 -->
+    </div>
+  </div>
+</div>
 <div class="modal" id="modal-settings">
   <div class="modal-box">
     <div class="modal-head"><h3>⚙ 系统设置</h3><button onclick="window.closeModal('modal-settings')">关闭</button></div>
@@ -1879,11 +1890,69 @@ window.calculateEnrollYear = (birthYear, birthMonth, birthDay) => {
   let by = parseInt(birthYear);
   let bm = parseInt(birthMonth) || 1;
   let bd = parseInt(birthDay) || 1;
+  // 9月1日之前（含）出生，当年入学（by + 11）
+  // 9月1日之后出生，晚一年入学（by + 12）
   if (bm > 9 || (bm === 9 && bd > 1)) {
-    return by + 12; // 9月1日之后出生，晚一年入学
+    return by + 12;
   }
-  return by + 11; // 9月1日之前（含）出生，当年入学
+  return by + 11;
 };
+// ==================== NPC 年级与称呼计算系统 ====================
+// 魔法世界核心 NPC 出生数据库（用于推算年级和称呼）
+const NPC_BIRTH_DATA = {
+  "哈利·波特": { year: 1980, month: 7, day: 31, gender: "男" },
+  "罗恩·韦斯莱": { year: 1980, month: 3, day: 1, gender: "男" },
+  "赫敏·格兰杰": { year: 1979, month: 9, day: 19, gender: "女" },
+  "德拉科·马尔福": { year: 1980, month: 6, day: 5, gender: "男" },
+  "纳威·隆巴顿": { year: 1980, month: 7, day: 30, gender: "男" },
+  "金妮·韦斯莱": { year: 1981, month: 8, day: 11, gender: "女" },
+  "卢娜·洛夫古德": { year: 1981, month: 2, day: 13, gender: "女" },
+  "珀西·韦斯莱": { year: 1976, month: 8, day: 22, gender: "男" },
+  "弗雷德·韦斯莱": { year: 1978, month: 4, day: 1, gender: "男" },
+  "乔治·韦斯莱": { year: 1978, month: 4, day: 1, gender: "男" },
+  "塞德里克·迪戈里": { year: 1977, month: 5, day: 1, gender: "男" },
+  "秋·张": { year: 1979, month: 3, day: 1, gender: "女" }
+};
+
+// 获取 NPC 当前年级（返回 null 表示未知）
+function getNpcGrade(npcName, currentYear) {
+  if (!NPC_BIRTH_DATA[npcName]) return null;
+  const b = NPC_BIRTH_DATA[npcName];
+  const enrollYear = window.calculateEnrollYear(b.year, b.month, b.day);
+  return currentYear - enrollYear + 1;
+}
+
+// 获取玩家对 NPC 的称呼
+function getPlayerToNpcAddress(npcName, currentYear, playerGender) {
+  const npcGrade = getNpcGrade(npcName, currentYear);
+  const playerGrade = ccGetGrade();
+  if (!npcGrade || !playerGrade) return null;
+  
+  const npcGender = NPC_BIRTH_DATA[npcName]?.gender || '未知';
+  
+  if (npcGrade > playerGrade) {
+    return npcGender === '女' ? '学姐' : '学长';
+  } else if (npcGrade < playerGrade) {
+    return npcGender === '女' ? '学妹' : '学弟';
+  } else {
+    return '同学';
+  }
+}
+
+// 获取 NPC 对玩家的称呼
+function getNpcToPlayerAddress(npcName, currentYear, playerGender) {
+  const npcGrade = getNpcGrade(npcName, currentYear);
+  const playerGrade = ccGetGrade();
+  if (!npcGrade || !playerGrade) return null;
+  
+  if (playerGrade > npcGrade) {
+    return playerGender === '女' ? '学妹' : '学弟';
+  } else if (playerGrade < npcGrade) {
+    return playerGender === '女' ? '学姐' : '学长';
+  } else {
+    return '同学';
+  }
+}
 // ==================== 幕后礼物好感系统 ====================
 const GIFT_DATA = {
   "哈利·波特": { "心爱": ["金色飞贼模型"], "喜欢": ["魁地奇杂志", "蜂蜜公爵糖果"], "无感": ["普通羽毛笔"], "不喜欢": ["德思礼家合照"] },
@@ -1915,13 +1984,13 @@ const GIFT_DATA = {
   "小天狼星·布莱克": { "心爱": ["哈利照片"], "喜欢": ["麻瓜摩托车杂志", "恶作剧道具"], "无感": ["纯血统家谱"], "不喜欢": ["布莱克家族挂毯"] },
   "尼法朵拉·唐克斯": { "心爱": ["易容马格斯发色剂"], "喜欢": ["麻瓜时尚杂志", "恶作剧道具"], "无感": ["魔法部制服"], "不喜欢": ["纯血统论手册"] },
   "詹姆·波特": { "心爱": ["金色飞贼"], "喜欢": ["恶作剧道具", "魁地奇杂志"], "无感": ["魔药课本"], "不喜欢": ["斯莱特林围巾"] },
-  "莉莉·波特": { "心爱": ["百合花"], "喜欢": ["魔药书籍", "巧克力"], "无感": ["魁地奇杂志"], "不喜欢": ["黑魔法书籍"] },
+  "莉莉·波特": { "心爱": ["魁地奇"], "喜欢": ["魔药书籍", "巧克力"], "无感": ["魁地奇杂志"], "不喜欢": ["黑魔法书籍"] },
   "小矮星彼得": { "心爱": ["奶酪"], "喜欢": ["老鼠玩具", "魔法物品"], "无感": ["英雄勋章"], "不喜欢": ["格兰芬多勋章"] },
   "雷古勒斯·布莱克": { "心爱": ["斯莱特林挂坠盒复制品"], "喜欢": ["黑魔法防御书", "魁地奇"], "无感": ["纯血统集会邀请"], "不喜欢": ["黑魔标记"] },
   "阿拉斯托·穆迪": { "心爱": ["防恶咒护具"], "喜欢": ["黑魔法探测器", "假眼"], "无感": ["糖果"], "不喜欢": ["背叛者物品"] },
   "金斯莱·沙克尔": { "心爱": ["傲罗徽章"], "喜欢": ["麻瓜唱片", "黑咖啡"], "无感": ["纯血统饰品"], "不喜欢": ["食死徒标志"] },
   "多洛雷斯·乌姆里奇": { "心爱": ["粉红猫咪盘"], "喜欢": ["魔法部法令", "华丽羽毛笔"], "无感": ["恶作剧道具"], "不喜欢": ["格兰芬多围巾"] },
-  "霍拉斯·斯拉格霍恩": { "心爱": ["菠萝蜜饯"], "喜欢": ["珍稀魔药", "名人签名"], "无感": ["普通课本"], "不喜欢": ["简陋二手礼物"] },
+  "霍拉斯·斯拉格霍恩": { "心爱": ["菠萝蜜饯"], "喜欢": ["珍稀魔药", "名人签名"], "无感": ["普通课本"], "不喜欢": ["敷衍礼物"] },
   "菲利乌斯·弗立维": { "心爱": ["魔咒学专著"], "喜欢": ["小巧饰品", "羽毛笔"], "无感": ["魁地奇杂志"], "不喜欢": ["黑魔法书"] },
   "波莫娜·斯普劳特": { "心爱": ["稀有植物"], "喜欢": ["园艺工具", "草药书"], "无感": ["魔药课本"], "不喜欢": ["除草剂"] },
   "西比尔·特里劳妮": { "心爱": ["水晶球"], "喜欢": ["茶叶", "塔罗牌"], "无感": ["科学书籍"], "不喜欢": ["怀疑占卜的书"] },
@@ -1943,7 +2012,7 @@ const GIFT_DATA = {
   "雅各布·科瓦尔斯基": { "心爱": ["祖母食谱"], "喜欢": ["烘焙工具", "麻瓜糖果"], "无感": ["魔杖"], "不喜欢": ["遗忘咒药水"] },
   "盖勒特·格林德沃": { "心爱": ["血盟吊坠"], "喜欢": ["黑魔法书籍", "预言"], "无感": ["麻瓜物品"], "不喜欢": ["魔法部通缉令"] },
   "克雷登斯·拜尔本": { "心爱": ["温暖围巾"], "喜欢": ["凤凰玩偶", "默默然相关"], "无感": ["魔法部文件"], "不喜欢": ["格林德沃欺骗物"] },
-  "青年邓布利多": { "心爱": ["柠檬雪宝"], "喜欢": ["黑魔法防御书", "凤凰羽毛笔"], "无感": ["魔法部文件"], "不喜欢": ["格林德沃传单"] }
+  "青年邓布利多": { "心爱": ["柠檬雪宝"], "喜欢": ["黑魔法防御书", "凤凰羽毛笔"], "无感": ["魔法部文件"], "不喜欢": ["格林德沃通缉令"] }
 };
 
 // 幕后判定逻辑：找物品在哪个档位
@@ -2355,6 +2424,34 @@ function buildSystemPrompt(extra='') {
 - 格式：{"narration": "...", "state_changes": {...}, "options": [...]}
 - narration 正文使用第二人称“你”叙述，沉浸式、有画面感。
 - options 提供 2~4 个符合当前情境的短期行动建议，每条不超过 15 字。
+
+// ========== 特殊添加：年份与称呼规则 ==========
+const currentYear = ccGetCurrentYear();
+const playerGrade = ccGetGrade();
+const playerGender = gameState.charCard.gender || '未定';
+
+let addressRules = '';
+if (gameState.actors && Array.isArray(gameState.actors)) {
+  gameState.actors.forEach(actor => {
+    if (actor === '你' || actor === gameState.charCard.name) return;
+    
+    const npcGrade = getNpcGrade(actor, currentYear);
+    if (npcGrade !== null) {
+      const playerToNpc = getPlayerToNpcAddress(actor, currentYear, playerGender);
+      const npcToPlayer = getNpcToPlayerAddress(actor, currentYear, playerGender);
+      const npcGender = NPC_BIRTH_DATA[actor]?.gender || '未知';
+      
+      if (playerToNpc && npcToPlayer) {
+        addressRules += `\n- 当前 NPC【${actor}】（${npcGrade}年级，${npcGender}）与你（玩家，${playerGrade}年级，${playerGender}）的关系：你应当称呼对方为【${playerToNpc}】，对方应当称呼你为【${npcToPlayer}】。请在对话中严格遵守这一称呼规则，禁止使用其他辈分称呼！`;
+      }
+    }
+  });
+}
+
+if (addressRules) {
+  finalPrompt += `\n【极其重要的时代背景与称呼规则】\n当前游戏年份：${currentYear}年，你是${playerGrade}年级学生。\n${addressRules}\n`;
+  finalPrompt += `【警告】在任何剧情、对话中，请绝对不要出现称呼错乱的情况！若用户没提名称，请根据上述规则在叙述和对话中自然地带入称呼。\n`;
+}
 
 【新增规则：好感度与关系状态】
 1. 好感度数值区间对应关系：0-150(朋友)、150(暧昧)、150-260(表白期)、260(知己)、500(伴侣)、700(挚爱)、800(订婚)、900(灵魂知己)、1000(灵魂伴侣)。请在描写剧情时，严格遵守当前好感度对应的关系状态，不要越界。
@@ -3095,6 +3192,80 @@ function getRelationLabel(v) {
   if (v < 1000) return '灵魂知己';
   return '灵魂伴侣';
 }
+// ==================== 人物档案弹窗逻辑 ====================
+window.openNpcDetail = (name) => {
+  // 如果档案不存在，生成兜底数据
+  if (!gameState.characters) gameState.characters = {};
+  if (!gameState.relationsTags) gameState.relationsTags = {};
+  
+  if (!gameState.characters[name]) {
+    gameState.characters[name] = {
+      name: name, gender: '待补充', age: '待补充', birthday: '待补充',
+      identity: '待补充', outfit: '待补充', 
+      opinion: '暂时还没有深入了解，不知全貌。', 
+      otherRelations: '暂无信息'
+    };
+  }
+
+  const c = gameState.characters[name];
+  const affinity = gameState.relations[name] || 0;
+  const level = getRelationLabel(affinity); // 复用你写好的好感等级函数
+  const tags = (gameState.relationsTags && gameState.relationsTags[name]) ? gameState.relationsTags[name].join(' · ') : '无特殊关系';
+  
+  const box = $('npc-modal-body');
+  if (!box) return;
+
+  // 好感度进度条百分比 (0-1000)
+  const barPercent = Math.min(100, Math.max(0, (affinity / 1000) * 100));
+
+  box.innerHTML = `
+    <div class="cc-sec open" style="border:1px solid var(--border-dim); margin-bottom:12px;">
+      <div class="cc-sec-head" style="background:#fafafa;">
+        <h4 style="color:var(--accent-orange); font-size:16px;">${esc(c.name)}</h4>
+        <span style="font-size:12px; color:var(--text-dim);">${esc(level)} ${tags !== '无特殊关系' ? '· ' + tags : ''}</span>
+      </div>
+      <div class="cc-sec-body" style="display:block;">
+        <div class="cc-row"><div class="cc-k">性别</div><div class="cc-v">${esc(c.gender)}</div></div>
+        <div class="cc-row"><div class="cc-k">年岁</div><div class="cc-v">${esc(c.age)}</div></div>
+        <div class="cc-row"><div class="cc-k">生日</div><div class="cc-v">${esc(c.birthday)}</div></div>
+        <div class="cc-row"><div class="cc-k">身份</div><div class="cc-v">${esc(c.identity)}</div></div>
+        <div class="cc-row"><div class="cc-k">衣着</div><div class="cc-v">${esc(c.outfit)}</div></div>
+        
+        <div class="cc-row" style="flex-direction:column; align-items:stretch; border-bottom:none; padding-bottom:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="cc-k" style="min-width:auto;">对{{user}}的好感</span>
+            <span class="cc-v" style="flex:none; color:var(--accent-orange); font-weight:bold;">${affinity} / 1000</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:11px; color:var(--text-dim);">当前阶段：${level}</span>
+          </div>
+          <div class="bar" style="background:var(--border-dim); height:8px; border-radius:4px; overflow:hidden;">
+            <i style="display:block; height:100%; width:${barPercent}%; background:linear-gradient(90deg, #ff7e5f, #feb47b); border-radius:4px; transition: width 0.4s ease;"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cc-sec open" style="border:1px solid var(--border-dim); margin-bottom:12px;">
+      <div class="cc-sec-head" style="background:#fafafa;"><h4>💭 对{{user}}的看法（内心独白）</h4></div>
+      <div class="cc-sec-body" style="display:block; font-size:12px; line-height:1.7; color:var(--text-main); text-indent: 2em;">
+        ${esc(c.opinion)}
+      </div>
+    </div>
+
+    <div class="cc-sec open" style="border:1px solid var(--border-dim);">
+      <div class="cc-sec-head" style="background:#fafafa;"><h4>🤝 与其他人的关系</h4></div>
+      <div class="cc-sec-body" style="display:block; font-size:12px; line-height:1.7; color:var(--text-main); white-space:pre-wrap;">
+        ${esc(c.otherRelations)}
+      </div>
+    </div>
+  `;
+  window.openModal('modal-npc');
+};
+
+window.closeNpcDetail = () => {
+  window.closeModal('modal-npc');
+};
 window.renderCharSidebar = () => {
   const c = gameState.charCard;
   const box = $('cc-sidebar-body');
@@ -3102,6 +3273,9 @@ window.renderCharSidebar = () => {
 
   const isStudent = c.identityType !== 'adult';
   const tl = TIMELINES.find(t => t.id === c.timeline) || TIMELINES[4];
+  // 防止时间线和称呼冲突，强制覆盖原有的默认时间描述
+const actualYear = ccGetCurrentYear();
+finalPrompt += `当前玩家所处的游戏内年份是：${actualYear}年。请不要偏离这个时间线。\n\n`;
   const by = ccGetBirthYear();
   const cy = ccGetCurrentYear();
   const st = gameState.stats;
