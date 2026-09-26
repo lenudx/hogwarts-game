@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>漫威模拟器</title>
+<style>
+:root {
+  --bg-deep: #0f1115; --bg-mid: #161a22; --bg-light: #1f242f;
+  --border-dim: #2c3240; --border-glow: #4a5568;
+  --text-main: #e2e8f0; --text-dim: #8b99ae; --text-faint: #4c5c72;
+  --accent-red: #e53e3e; --accent-blue: #3182ce; --accent-gold: #d69e2e;
+  --accent-glow: rgba(49, 130, 206, 0.2);
+  --success: #38a169; --danger: #e53e3e;
+  --app-brightness: 100%; --app-contrast: 100%; --app-blur: 0px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  color: var(--text-main); font-size: 14px; background-color: var(--bg-deep);
+  background-image: radial-gradient(circle at 50% 0%, #1a202c 0%, #0f1115 80%);
+  -webkit-font-smoothing: antialiased;
+}
+#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+button, input, textarea, select { font-family: inherit; font-size: 13px; }
+button {
+  cursor: pointer; border-radius: 8px; border: 1px solid var(--border-dim);
+  background: var(--bg-mid); color: var(--text-main);
+  padding: 8px 12px; transition: 0.2s; touch-action: manipulation; user-select: none;
+}
+button:active { transform: scale(0.96); background: var(--bg-light); }
+button:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
+button.primary { background: linear-gradient(135deg, #2b3a55, #1a2638); border-color: var(--accent-blue); color: #fff; font-weight: 600; }
+button.primary:hover { box-shadow: 0 0 10px var(--accent-glow); }
+
+/* 顶部状态栏 */
+header {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg-mid); border-bottom: 1px solid var(--border-dim); z-index: 10;
+}
+.header-left, .header-right { display: flex; gap: 6px; }
+.header-info { display: flex; flex-direction: column; align-items: center; }
+.header-info .h-line { font-size: 12px; color: var(--text-dim); }
+.header-info .h-line span { color: var(--accent-gold); font-weight: 600; }
+
+/* 主内容区 */
+main { flex: 1; display: flex; overflow: hidden; position: relative; }
+#sidebar { width: 260px; flex-shrink: 0; background: var(--bg-mid); border-right: 1px solid var(--border-dim); overflow-y: auto; padding: 12px; transition: 0.25s; z-index: 20; }
+#sidebar.hidden { transform: translateX(-100%); position: absolute; top: 0; bottom: 0; left: 0; box-shadow: 5px 0 20px rgba(0,0,0,0.5); }
+#main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#story {
+  flex: 1; overflow-y: auto; padding: 16px;
+  filter: brightness(var(--app-brightness)) contrast(var(--app-contrast)) blur(var(--app-blur));
+}
+.msg { max-width: 90%; margin-bottom: 14px; line-height: 1.7; animation: fadeIn 0.3s ease; word-break: break-word; white-space: pre-wrap; position: relative; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.msg.assistant { margin-right: auto; background: var(--bg-light); border: 1px solid var(--border-dim); border-top-left-radius: 4px; border-radius: 12px; padding: 12px 16px; }
+.msg.user { margin-left: auto; background: #1a2a45; border: 1px solid #2b4170; border-top-right-radius: 4px; border-radius: 12px; padding: 12px 16px; color: #a3c2f0; }
+.msg.system { margin: 0 auto; text-align: center; font-size: 12px; color: var(--text-dim); background: rgba(255,255,255,0.05); border-radius: 20px; padding: 6px 16px; max-width: 95%; }
+
+/* 选项与输入栏 */
+#options { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 0 16px 8px; max-height: 130px; overflow-y: auto; }
+#options button { text-align: left; padding: 10px 14px 10px 30px; position: relative; }
+#options button::before { content: "▸"; position: absolute; left: 12px; color: var(--accent-blue); }
+#input-bar { flex-shrink: 0; display: flex; gap: 8px; padding: 12px 14px 20px; border-top: 1px solid var(--border-dim); background: var(--bg-deep); }
+#user-input { flex: 1; min-height: 44px; max-height: 100px; padding: 12px 16px; background: var(--bg-mid); border: 1px solid var(--border-dim); border-radius: 8px; color: var(--text-main); outline: none; resize: none; }
+#user-input:focus { border-color: var(--accent-blue); }
+#send-btn { height: 44px; padding: 0 24px; border-radius: 8px; }
+
+/* 弹窗系统 */
+.modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; backdrop-filter: blur(2px); }
+.modal.show { display: flex; }
+.modal-box { background: var(--bg-mid); border: 1px solid var(--border-dim); border-radius: 12px; width: 100%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--border-dim); flex-shrink: 0; }
+.modal-head h3 { font-size: 16px; color: var(--accent-gold); }
+.settings-tabs { display: flex; border-bottom: 1px solid var(--border-dim); flex-shrink: 0; overflow-x: auto; background: var(--bg-deep); }
+.settings-tabs button { flex: 1; min-width: 70px; border: none; background: transparent; border-radius: 0; padding: 12px; font-size: 13px; color: var(--text-dim); border-bottom: 2px solid transparent; }
+.settings-tabs button.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); font-weight: 600; }
+.modal-body { overflow-y: auto; padding: 16px; flex: 1; }
+.tab-pane { display: none; } .tab-pane.active { display: block; }
+
+/* 表单与卡片 */
+.field { margin-bottom: 16px; } .field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+.field input, .field textarea, .field select { width: 100%; padding: 10px 12px; background: var(--bg-deep); border: 1px solid var(--border-dim); border-radius: 6px; color: var(--text-main); outline: none; }
+.field input:focus, .field textarea:focus { border-color: var(--accent-blue); }
+.card { background: var(--bg-light); border: 1px solid var(--border-dim); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.kv { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; }
+.kv .k { color: var(--text-dim); } .kv .v { text-align: right; }
+
+/* 消息长按菜单 */
+.msg-menu-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.msg-menu-overlay.show { display: flex; }
+.msg-menu-box { background: var(--bg-mid); border: 1px solid var(--border-dim); border-radius: 12px; width: 240px; overflow: hidden; }
+.msg-menu-box button { display: block; width: 100%; padding: 16px; background: transparent; border: none; border-bottom: 1px solid var(--border-dim); color: var(--text-main); text-align: left; }
+.msg-menu-box button:last-child { border-bottom: none; }
+.msg-menu-box button.danger { color: var(--danger); }
+.msg-menu-box button.cancel { color: var(--text-dim); text-align: center; }
+
+@media (max-width: 820px) {
+  .only-mobile { display: inline-block; }
+  #sidebar { position: absolute; transform: translateX(-100%); }
+  #sidebar.show { transform: translateX(0); }
+}
+@media (min-width: 821px) {
+  .only-mobile { display: none; }
+  #sidebar { position: static; transform: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="header-left">
+      <button class="only-mobile" onclick="window.toggleSidebar()">☰</button>
+      <button onclick="window.openModal('modal-settings')">⚙ 设置</button>
+    </div>
+    <div class="header-info">
+      <div class="h-line"><span>时间：</span>未设定 <span> | </span> <span>地点：</span>未知</div>
+      <div class="h-line"><span>人物：</span>无</div>
+    </div>
+    <div class="header-right">
+      <button onclick="window.openModal('modal-forum')">📢 论坛</button>
+    </div>
+  </header>
+
+  <main>
+    <aside id="sidebar" class="hidden">
+      <div class="card">
+        <h4 style="color:var(--accent-gold);font-size:14px;margin-bottom:10px;">📊 角色面板</h4>
+        <div class="kv"><span class="k">姓名</span><span class="v" id="ui-char-name">未设定</span></div>
+        <div class="kv"><span class="k">阵营</span><span class="v" id="ui-char-faction">未设定</span></div>
+        <div class="kv"><span class="k">身份</span><span class="v" id="ui-char-identity">未设定</span></div>
+        <div class="kv"><span class="k">信用点</span><span class="v" id="ui-char-credits">0</span></div>
+      </div>
+      <button class="primary" style="width:100%;margin-top:10px;" onclick="window.openModal('modal-create')">✏️ 修改档案</button>
+    </aside>
+
+    <div id="main-content">
+      <div id="story"></div>
+      <div id="options"></div>
+      <div id="input-bar">
+        <textarea id="user-input" rows="1" placeholder="你要做什么？（Enter 发送 / Shift+Enter 换行）"></textarea>
+        <button class="primary" id="send-btn" onclick="window.onSend()">发送</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 长按菜单 -->
+<div class="msg-menu-overlay" id="msg-menu-overlay" onclick="if(event.target===this) window.hideMesMenu()">
+  <div class="msg-menu-box">
+    <button id="menu-btn-regen" onclick="window.menuRegen()">🔁 重说（重新生成）</button>
+    <button id="menu-btn-edit" onclick="window.menuEdit()">✏️ 修改内容</button>
+    <button onclick="window.menuDelete()" class="danger">🗑 删除这条消息</button>
+    <button onclick="window.hideMesMenu()" class="cancel">取消</button>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="modal" id="modal-settings">
+  <div class="modal-box">
+    <div class="modal-head"><h3>⚙ 系统设置</h3><button onclick="window.closeModal('modal-settings')">关闭</button></div>
+    <div class="settings-tabs">
+      <button class="active" onclick="window.switchTab('tab-api')">API</button>
+      <button onclick="window.switchTab('tab-world')">世界书</button>
+      <button onclick="window.switchTab('tab-preset')">预设</button>
+      <button onclick="window.switchTab('tab-beautify')">美化</button>
+      <button onclick="window.switchTab('tab-music')">音乐</button>
+      <button onclick="window.switchTab('tab-save')">存档</button>
+      <button onclick="window.switchTab('tab-redeem')">兑换码</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-pane active" id="tab-api">
+        <div class="field"><label>接口地址</label><input id="cfg-url" placeholder="https://api.openai.com/v1/chat/completions"></div>
+        <div class="field"><label>API Key</label><input id="cfg-key" type="password" placeholder="sk-..."></div>
+        <div class="field"><label>模型名</label><input id="cfg-model" placeholder="gpt-4o-mini"></div>
+        <button class="primary" style="width:100%;padding:10px" onclick="window.saveApiConfig()">保存 API 配置</button>
+      </div>
+      <div class="tab-pane" id="tab-world">世界书管理占位（待后续开发）</div>
+      <div class="tab-pane" id="tab-preset">预设管理占位（待后续开发）</div>
+      <div class="tab-pane" id="tab-beautify">
+        <div class="field"><label>全局亮度</label><input type="range" id="ui-brightness" min="50" max="150" value="100" oninput="window.applyFilter('brightness', this.value)"></div>
+        <div class="field"><label>对比度</label><input type="range" id="ui-contrast" min="50" max="150" value="100" oninput="window.applyFilter('contrast', this.value)"></div>
+        <div class="field"><label>模糊度</label><input type="range" id="ui-blur" min="0" max="10" value="0" oninput="window.applyFilter('blur', this.value)"></div>
+        <div class="field"><label>壁纸链接</label><input id="cfg-wallpaper" placeholder="输入图片 URL" onchange="window.applyWallpaper(this.value)"></div>
+      </div>
+      <div class="tab-pane" id="tab-music">音乐播放器占位（待后续开发）</div>
+      <div class="tab-pane" id="tab-save">存档管理占位（待后续开发）</div>
+      <div class="tab-pane" id="tab-redeem">
+        <div class="field"><label>输入兑换码</label><input id="redeem-input" placeholder="请输入代码..."></div>
+        <button class="primary" style="width:100%;padding:10px" onclick="window.redeemCode()">兑换</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 开局建档弹窗 -->
+<div class="modal" id="modal-create">
+  <div class="modal-box" style="max-width:500px;">
+    <div class="modal-head"><h3 id="cc-create-title">建立档案</h3></div>
+    <div class="modal-body" id="cc-create-body">
+      <!-- 占位，后续由JS动态渲染 -->
+    </div>
+  </div>
+</div>
+
+<!-- 论坛弹窗 -->
+<div class="modal" id="modal-forum">
+  <div class="modal-box">
+    <div class="modal-head"><h3>漫威论坛</h3><button onclick="window.closeModal('modal-forum')">关闭</button></div>
+    <div class="modal-body" id="forum-body">论坛占位（待后续开发）</div>
+  </div>
+</div>
+
+<script>
+// ==================== 全局工具 ====================
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = { get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }, set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
+
+// ==================== 状态与数据 ====================
+let gameState = LS.get('marvel_state', {
+  name: '未命名', faction: '', identity: '', credits: 0, inventory: [], relations: {}, time: '', scene: '', actors: []
+});
+let displayHistory = LS.get('marvel_display', []);
+let apiConfig = LS.get('marvel_api', { url: '', key: '', model: '', temperature: 0.9 });
+let busy = false;
+
+// ==================== 界面操作 ====================
+window.toggleSidebar = () => { $('sidebar').classList.toggle('hidden'); $('sidebar').classList.toggle('show'); };
+window.openModal = (id) => { $(id).classList.add('show'); if(id === 'modal-create') renderCreateStep(); };
+window.closeModal = (id) => $(id).classList.remove('show');
+
+window.switchTab = (tabId) => {
+  document.querySelectorAll('.settings-tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.settings-tabs button[onclick*="${tabId}"]`)?.classList.add('active');
+  $(tabId)?.classList.add('active');
+};
+
+// 渲染顶栏
+window.renderStatus = () => {
+  $('ui-char-name').textContent = gameState.name || '未设定';
+  $('ui-char-faction').textContent = gameState.faction || '未设定';
+  $('ui-char-identity').textContent = gameState.identity || '未设定';
+  $('ui-char-credits').textContent = gameState.credits || 0;
+};
+
+// ==================== 消息系统 ====================
+window.renderStory = () => {
+  const box = $('story');
+  box.innerHTML = '';
+  displayHistory.forEach((m, i) => {
+    const el = document.createElement('div');
+    el.className = 'msg ' + m.role;
+    el.textContent = m.text;
+    el.dataset.idx = i;
+    attachMsgGestures(el, i);
+    box.appendChild(el);
+  });
+  box.scrollTop = box.scrollHeight;
+};
+
+window.pushDisplay = (role, text) => {
+  displayHistory.push({ role, text, t: Date.now() });
+  const el = document.createElement('div');
+  el.className = 'msg ' + role;
+  el.textContent = text;
+  el.dataset.idx = displayHistory.length - 1;
+  attachMsgGestures(el, el.dataset.idx);
+  $('story').appendChild(el);
+  $('story').scrollTop = $('story').scrollHeight;
+  LS.set('marvel_display', displayHistory);
+};
+
+// 长按手势
+function attachMsgGestures(el, idx) {
+  let startX = 0, startY = 0, timer = null, moved = false;
+  const onStart = (e) => {
+    const t = e.touches ? e.touches[0] : e;
+    startX = t.clientX; startY = t.clientY; moved = false;
+    if(timer) clearTimeout(timer);
+    timer = setTimeout(() => { if(!moved) window.showMesMenu(idx); }, 520);
+  };
+  const onMove = (e) => {
+    const t = e.touches ? e.touches[0] : e;
+    if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) {
+      moved = true; if(timer) clearTimeout(timer);
+    }
+  };
+  const onEnd = () => { if(timer) clearTimeout(timer); };
+  el.addEventListener('touchstart', onStart, {passive:true});
+  el.addEventListener('touchmove', onMove, {passive:true});
+  el.addEventListener('touchend', onEnd, {passive:true});
+  el.addEventListener('mousedown', onStart);
+  el.addEventListener('mousemove', onMove);
+  el.addEventListener('mouseup', onEnd);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+// 气泡菜单逻辑
+let menuTargetIdx = -1;
+window.showMesMenu = (idx) => {
+  menuTargetIdx = idx;
+  const m = displayHistory[idx];
+  $('menu-btn-regen').style.display = m.role === 'assistant' ? 'block' : 'none';
+  $('menu-btn-edit').style.display = m.role === 'user' ? 'block' : 'none';
+  $('msg-menu-overlay').classList.add('show');
+};
+window.hideMesMenu = () => $('msg-menu-overlay').classList.remove('show');
+
+window.menuDelete = () => {
+  if (!confirm('删除这条消息？')) return;
+  displayHistory.splice(menuTargetIdx, 1);
+  LS.set('marvel_display', displayHistory);
+  window.renderStory(); window.hideMesMenu();
+};
+
+window.menuEdit = () => {
+  const m = displayHistory[menuTargetIdx];
+  const newText = prompt('修改内容：', m.text);
+  if (newText === null || !newText.trim()) return;
+  m.text = newText.trim();
+  LS.set('marvel_display', displayHistory);
+  window.renderStory(); window.hideMesMenu();
+};
+
+window.menuRegen = async () => {
+  const m = displayHistory[menuTargetIdx];
+  if (m.role !== 'assistant') return;
+  // 找到上一条用户消息
+  let playerIdx = menuTargetIdx - 1;
+  while (playerIdx >= 0 && displayHistory[playerIdx].role !== 'user') playerIdx--;
+  if (playerIdx < 0) return alert('找不到对应的玩家输入');
+  const playerText = displayHistory[playerIdx].text;
+  window.hideMesMenu();
+  window.pushDisplay('system', '🔄 正在重新生成...');
+  // 这里后续接入API重试逻辑
+  window.pushDisplay('system', '基础框架：重说功能已预留，后续接入API逻辑。');
+};
+
+// ==================== 开局建档 ====================
+const TIMELINES = [
+  { id: 'classic', name: '经典复仇者时代', desc: '钢铁侠、美国队长、雷神等初代复仇者活跃的时期。' },
+  { id: 'xmen', name: '变种人崛起', desc: 'X战警与兄弟会冲突不断的时期。' },
+  { id: 'street', name: '街头英雄', desc: '夜魔侠、惩罚者、蜘蛛侠等在纽约街头活动的时期。' },
+  { id: 'cosmic', name: '宇宙纪元', desc: '银河护卫队、惊奇队长等宇宙级英雄活跃的时期。' }
+];
+
+let ccStep = 'timeline';
+window.openCreateModal = () => { ccStep = 'timeline'; window.openModal('modal-create'); };
+
+function renderCreateStep() {
+  const box = $('cc-create-body');
+  if (ccStep === 'timeline') {
+    box.innerHTML = `
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">选择你的故事时代：</div>
+      ${TIMELINES.map(t => `
+        <button onclick="window.ccPickTimeline('${t.id}')" style="width:100%;text-align:left;padding:14px;margin-bottom:8px;background:var(--bg-light);border:1px solid var(--border-dim);">
+          <div style="font-size:14px;color:var(--accent-gold);font-weight:600;">${t.name}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${t.desc}</div>
+        </button>
+      `).join('')}
+    `;
+  } else if (ccStep === 'form') {
+    box.innerHTML = `
+      <div class="field"><label>姓名 / 代号</label><input id="cc-name" placeholder="如：托尼·斯塔克 / 钢铁侠"></div>
+      <div class="field"><label>阵营</label>
+        <select id="cc-faction">
+          <option value="复仇者">复仇者</option>
+          <option value="X战警">X战警</option>
+          <option value="神盾局">神盾局</option>
+          <option value="九头蛇">九头蛇</option>
+          <option value="中立">中立 / 平民</option>
+        </select>
+      </div>
+      <div class="field"><label>身份</label>
+        <select id="cc-identity">
+          <option value="超级英雄">超级英雄</option>
+          <option value="特工">特工</option>
+          <option value="变种人">变种人</option>
+          <option value="科学家">科学家</option>
+          <option value="普通市民">普通市民</option>
+        </select>
+      </div>
+      <button class="primary" style="width:100%;padding:12px" onclick="window.ccConfirmCreate()">保存并开始</button>
+    `;
+  }
+}
+window.ccPickTimeline = (id) => { ccStep = 'form'; renderCreateStep(); };
+window.ccConfirmCreate = () => {
+  gameState.name = $('cc-name').value.trim() || '无名氏';
+  gameState.faction = $('cc-faction').value;
+  gameState.identity = $('cc-identity').value;
+  gameState.credits = 100;
+  LS.set('marvel_state', gameState);
+  window.closeModal('modal-create');
+  window.renderStatus();
+  window.pushDisplay('system', `📝 档案建立完成，欢迎来到漫威宇宙！`);
+  window.pushDisplay('assistant', `【游戏开始】${gameState.name}，你是一名${gameState.faction}的${gameState.identity}，此刻你身处纽约街头。请描述你的开场行动。`);
+};
+
+// ==================== 设置功能 ====================
+window.saveApiConfig = () => {
+  apiConfig.url = $('cfg-url').value.trim();
+  apiConfig.key = $('cfg-key').value.trim();
+  apiConfig.model = $('cfg-model').value.trim();
+  LS.set('marvel_api', apiConfig);
+  alert('API 配置已保存');
+};
+
+window.applyFilter = (type, value) => {
+  document.documentElement.style.setProperty('--app-' + type, value + (type === 'blur' ? 'px' : '%'));
+};
+
+window.applyWallpaper = (url) => {
+  if (url) document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, rgba(15,17,21,0.8) 0%, rgba(15,17,21,0.95) 80%), url('${url}')`;
+};
+
+window.redeemCode = () => {
+  const code = $('redeem-input').value.trim();
+  if (code === 'MARVEL') {
+    gameState.credits += 1000; LS.set('marvel_state', gameState); window.renderStatus();
+    alert('兑换成功！获得 1000 信用点。');
+  } else {
+    alert('无效的兑换码');
+  }
+};
+
+// ==================== 基础消息发送（暂不接 API） ====================
+window.onSend = () => {
+  const input = $('user-input');
+  const text = input.value.trim();
+  if (!text || busy) return;
+  input.value = '';
+  window.pushDisplay('user', text);
+  window.pushDisplay('assistant', `【基础框架测试】你刚才发送了：“${text}”。\n\n请前往设置配置 API 后即可正式游玩。`);
+};
+
+// ==================== 初始化 ====================
+window.addEventListener('DOMContentLoaded', () => {
+  window.renderStatus();
+  window.renderStory();
+  // 回显 API 配置
+  $('cfg-url').value = apiConfig.url || '';
+  $('cfg-key').value = apiConfig.key || '';
+  $('cfg-model').value = apiConfig.model || '';
+
+  const ta = $('user-input');
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault(); window.onSend();
+    }
+  });
+});
+</script>
+</body>
+</html>
