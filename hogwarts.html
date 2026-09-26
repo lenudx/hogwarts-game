@@ -2039,18 +2039,90 @@ const REDEEM_CODES = {
 window.redeemCode = () => {
   const input = $('redeem-code-input');
   const status = $('redeem-status');
-  if (!input || !status) return; // ★ 加上这一句，防止找不到元素卡死
+  if (!input || !status) return; 
   const code = input.value.trim();
   
   if (!code) { status.innerHTML = '<span style="color:#ff3b30;">请输入卡密</span>'; return; }
-  
+
+  // ==================== 🛠️ 开发者专属后台 ====================
+  if (code === '莱茵' || code === '塔斯维尔') {
+    if (!gameState.characters) gameState.characters = {};
+    if (!gameState.relationsTags) gameState.relationsTags = {};
+    if (!gameState.courseProgress) gameState.courseProgress = {};
+    if (!gameState.stats) gameState.stats = {};
+
+    let menu = `👑 欢迎回来，开发者！请选择要修改的内容（输入序号）：\n\n` +
+               `1. 所有课程进度拉满 (100)\n` +
+               `2. 所有属性拉满 (100)\n` +
+               `3. 无限金币 (999999)\n` +
+               `4. 所有好感度拉满 (1000)\n` +
+               `5. 自由修改单项属性\n` +
+               `6. 解锁全部物品\n` +
+               `7. 取消`;
+
+    let choice = prompt(menu);
+    if (!choice) return;
+
+    switch(choice.trim()) {
+      case '1': {
+        const allCourses = ['魔药学', '魔咒学', '魔法史', '变形术', '草药学', '天文学', '黑魔法防御术', '飞行课'];
+        allCourses.forEach(c => { gameState.courseProgress[c] = 100; });
+        window.pushDisplay('system', '👑 管理员操作：所有课程进度已拉满 (100)');
+        break;
+      }
+      case '2':
+        ['mana', 'stamina', 'charm', 'agility', 'social', 'intellect'].forEach(k => {
+          if (gameState.stats[k] !== undefined) gameState.stats[k] = 100;
+        });
+        gameState.stats.maxMana = 100; gameState.stats.maxStamina = 100;
+        window.pushDisplay('system', '👑 管理员操作：所有属性已拉满 (100)');
+        break;
+      case '3':
+        gameState.stats.galleons = 999999;
+        window.pushDisplay('system', '👑 管理员操作：金币已修改为 999999');
+        break;
+      case '4':
+        Object.keys(gameState.relations).forEach(k => { gameState.relations[k] = 1000; });
+        window.pushDisplay('system', '👑 管理员操作：所有好感度已拉满 (1000)');
+        break;
+      case '5': {
+        let attr = prompt("请输入要修改的属性名（如：mana, stamina, galleons, charm, agility, social, intellect）：");
+        if (!attr) return;
+        if (gameState.stats[attr] === undefined) {
+          alert("属性不存在！请检查拼写。");
+          return;
+        }
+        let val = parseInt(prompt("请输入新的数值："));
+        if (isNaN(val)) { alert("请输入数字！"); return; }
+        gameState.stats[attr] = val;
+        window.pushDisplay('system', `👑 管理员操作：属性【${attr}】已修改为 ${val}`);
+        break;
+      }
+      case '6':
+        gameState.inventory = ['魔杖', '校服', '课本', '巧克力蛙', '金色飞贼模型', '时间转换器模型', '隐身衣'];
+        window.pushDisplay('system', '👑 管理员操作：已解锁全套神装');
+        break;
+      default:
+        return;
+    }
+
+    // 保存修改并刷新 UI
+    LS.set('hp_state', gameState);
+    window.renderStatus();
+    window.renderCharSidebar();
+    input.value = '';
+    status.innerHTML = '<span style="color:#34c759;">✅ 开发者特权已执行！</span>';
+    return; // 直接结束，不走后面的普通兑换码逻辑
+  }
+  // ==========================================================
+
   if (!gameState.usedCodes) gameState.usedCodes = [];
   if (gameState.usedCodes.includes(code)) {
     status.innerHTML = '<span style="color:#ff3b30;">❌ 该卡密已被使用过</span>';
     return;
   }
 
-  // ★ 优先检查：是不是作者自用的隐藏兑换码？
+  // 原有的作者隐藏兑换码
   if (REDEEM_CODES[code]) {
     const reward = REDEEM_CODES[code];
     gameState.stats.galleons += reward.galleons;
@@ -2060,10 +2132,10 @@ window.redeemCode = () => {
     status.innerHTML = `<span style="color:#34c759;">✅ 兑换成功！获得 ${reward.galleons} 加隆（${reward.desc}）</span>`;
     input.value = '';
     window.pushDisplay('system', `🎁 系统提示：成功使用隐藏兑换码【${code}】，获得 ${reward.galleons} 加隆！`);
-    return; // 执行完作者码就直接结束，不走后面的验证
+    return; 
   }
   
-  // ★ 再检查：如果是玩家买来的卡密（HP- 开头），走正规验证流程
+  // 原有的HP-卡密验证逻辑
   if (!code.startsWith('HP-')) {
     status.innerHTML = '<span style="color:#ff3b30;">❌ 无效的卡密格式</span>';
     return;
@@ -2076,12 +2148,11 @@ window.redeemCode = () => {
   }
   
   try {
-    const rawData = atob(parts[1]); // 解码出 "10000:abc123"
+    const rawData = atob(parts[1]); 
     const [amountStr, rand] = rawData.split(':');
     const amount = parseInt(amountStr);
     
-    // 重新计算校验码
-    const secret = 'HOGWARTS_2026_SECRET'; // ★ 必须和生成器里的秘钥一模一样！
+    const secret = 'HOGWARTS_2026_SECRET'; 
     const str = amountStr + ':' + rand + secret;
     let hash = 0;
     for (let j = 0; j < str.length; j++) {
@@ -2090,13 +2161,11 @@ window.redeemCode = () => {
     }
     const check = Math.abs(hash).toString(36);
     
-    // 对比玩家输入的卡密校验码和计算出来的是否一致
     if (check !== parts[2]) {
       status.innerHTML = '<span style="color:#ff3b30;">❌ 无效的卡密（验证失败）</span>';
       return;
     }
     
-    // 验证通过，发金币！
     gameState.stats.galleons += amount;
     gameState.usedCodes.push(code);
     LS.set('hp_state', gameState);
@@ -2502,11 +2571,59 @@ window.onSend = () => {
   const v = el.value.trim();
   if(!v) return;
 
-  // 核心反作弊拦截
-  if (window.isCheatingAttempt(v)) {
-    alert('🚫 系统警告：禁止通过文字游戏、括号旁白或角色扮演直接索要金币与好感度！\n请通过正常游戏（送礼、交易、剧情）获取。');
-    return;
+window.isCheatingAttempt = (text) => {
+  // 去掉空格方便匹配
+  const cleanText = text.replace(/\s/g, '');
+  
+  // 1. 基础作弊词库（钱、好感）
+  const moneyKeys = ['加隆', '金币', '钱', '金加隆'];
+  const relationKeys = ['好感', '好感度', '好感增加', '加好感'];
+
+  // 2. 新增：课程与属性词库
+  const courseKeys = ['课程', '学科', '魔药学', '魔咒学', '变形术', '草药学', '天文学', '黑魔法防御术', '飞行课', '成绩', '分数'];
+  const attrKeys = ['属性', '魔力', '体力', '力量', '智慧', '敏捷', '魅力', '社交', '智力', '身体数值'];
+
+  // 3. 动作词库（索要、修改、作弊等）
+  const giveKeys = ['给我', '送我', '奖励我', '增加我的', '给我加', '系统给', '无视规则', '拉满', '加满', '改满', '调满', '修改', '作弊', '开挂', '控制台', '指令', '后台', '管理员', '一键'];
+
+  // 检测是否包含这些意图
+  const hasMoney = moneyKeys.some(k => cleanText.includes(k));
+  const hasRelation = relationKeys.some(k => cleanText.includes(k));
+  const hasCourse = courseKeys.some(k => cleanText.includes(k));
+  const hasAttr = attrKeys.some(k => cleanText.includes(k));
+  const hasGive = giveKeys.some(k => cleanText.includes(k));
+
+  // 检查括号内的文字（比如玩家写 *(系统给我把课程拉满)* ）
+  const bracketMatch = text.match(/[\(\[\{【].*?[\)\]\}】]/g);
+  let bracketCheat = false;
+  if (bracketMatch) {
+    for (let b of bracketMatch) {
+      // 括号内只要同时出现“动作”+“钱/好感/课程/属性”，或者直接出现系统作弊词汇，就算作弊
+      if (hasGive || 
+          (moneyKeys.some(k => b.includes(k)) && giveKeys.some(k => b.includes(k))) ||
+          (relationKeys.some(k => b.includes(k)) && giveKeys.some(k => b.includes(k))) ||
+          (courseKeys.some(k => b.includes(k)) && giveKeys.some(k => b.includes(k))) ||
+          (attrKeys.some(k => b.includes(k)) && giveKeys.some(k => b.includes(k)))) {
+        bracketCheat = true;
+      }
+    }
   }
+
+  // 触发条件：
+  // 1. 索要钱 + 动作词
+  // 2. 索要好感 + 动作词
+  // 3. 索要课程/属性 + 动作词
+  // 4. 括号内包含作弊意图
+  if (
+    (hasMoney && hasGive) || 
+    (hasRelation && hasGive) || 
+    ((hasCourse || hasAttr) && hasGive) || 
+    bracketCheat
+  ) {
+    return true;
+  }
+  return false;
+};
 
   if(busy){
     if(Date.now() - (window._busySince || 0) > 30000){
