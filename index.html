@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>灰潮纪 · 企划档案库</title>
+<style>
+:root{
+  --bg:#0f1115; --panel:#171a21; --panel-2:#1d212a; --line:#2a2f3a;
+  --text:#e8e6e3; --muted:#9aa1ad; --gold:#d4b46a; --gold-dim:#8a7440;
+  --red:#e8836b; --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+body{
+  background:var(--bg); color:var(--text); line-height:1.7;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+
+/* 顶部 */
+header{
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;
+  max-width:1080px;margin:0 auto;padding:22px 16px 10px;
+}
+.brand{grid-column:2;text-align:center}
+.brand h1{font-size:clamp(19px,4.6vw,28px);letter-spacing:.14em;font-weight:600}
+.brand .sub{color:var(--muted);font-size:11px;letter-spacing:.3em;margin-top:4px}
+.auth-btn{
+  grid-column:3;justify-self:end;
+  background:none;border:1px solid var(--line);color:var(--muted);
+  font-size:13px;padding:6px 14px;border-radius:999px;cursor:pointer;font-family:inherit;
+  transition:.2s;white-space:nowrap;
+}
+.auth-btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+.auth-btn.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(212,180,106,.08)}
+
+/* 导航 */
+nav{
+  position:sticky;top:0;z-index:20;
+  background:rgba(15,17,21,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);margin-top:14px;
+}
+.nav-inner{
+  display:flex;gap:6px;overflow-x:auto;padding:9px 16px;
+  max-width:1080px;margin:0 auto;scrollbar-width:none;
+}
+.nav-inner::-webkit-scrollbar{display:none}
+.tab{
+  white-space:nowrap;padding:7px 15px;border-radius:999px;cursor:pointer;
+  color:var(--muted);font-size:14px;border:1px solid transparent;
+  background:none;font-family:inherit;transition:.2s;
+}
+.tab.active{color:var(--gold);background:rgba(212,180,106,.1);border-color:var(--gold-dim)}
+
+/* 主区 */
+main{padding:26px 0 70px;min-height:58vh}
+.view{display:none;animation:fade .25s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.section-title{font-size:12px;letter-spacing:.28em;color:var(--gold);margin-bottom:16px}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.row-between .section-title{margin-bottom:0}
+
+.grid{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:980px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+.card{
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:18px;
+}
+.card h3{font-size:16px;font-weight:600;letter-spacing:.04em}
+.card p{font-size:14px;color:#c3c8d1;margin-top:8px}
+.card .meta{font-size:12px;color:var(--muted);margin-top:3px;letter-spacing:.06em}
+
+.char-head{display:flex;align-items:center;gap:12px}
+.avatar-wrap{position:relative;flex:0 0 52px;width:52px;height:52px}
+.avatar{
+  width:100%;height:100%;border-radius:12px;display:grid;place-items:center;
+  font-size:20px;font-weight:600;color:#0f1115;
+  background:linear-gradient(135deg,#d4b46a,#a8863c);
+}
+.avatar-wrap img{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;border-radius:12px;
+}
+
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.tag{
+  font-size:11px;padding:2px 9px;border-radius:999px;
+  border:1px solid var(--line);color:var(--muted);
+}
+
+.badge{font-size:11px;padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.badge.active{color:var(--gold);border-color:var(--gold-dim);background:rgba(212,180,106,.1)}
+.badge.urgent{color:var(--red);border-color:#7a3b2e;background:rgba(232,131,107,.1)}
+.badge.pending{color:#8fb4d8;border-color:#33485c;background:rgba(143,180,216,.1)}
+
+.small{font-size:12px}
+.muted{color:var(--muted)}
+.empty{color:var(--muted);font-size:14px;padding:20px 0}
+
+/* 表单 */
+.panel{
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:20px;margin-bottom:22px;
+}
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
+input,textarea{
+  width:100%;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:10px;padding:11px 13px;color:var(--text);
+  font-size:15px;font-family:inherit;outline:none;transition:.2s;
+}
+input:focus,textarea:focus{border-color:var(--gold-dim)}
+textarea{resize:vertical;min-height:90px}
+.form-row{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:640px){.form-row{grid-template-columns:1fr 1fr}}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 22px;border-radius:999px;font-size:14px;cursor:pointer;
+  border:1px solid var(--gold-dim);background:rgba(212,180,106,.12);
+  color:var(--gold);font-family:inherit;transition:.2s;
+}
+.btn:hover{background:rgba(212,180,106,.2)}
+.btn.solid{background:var(--gold);color:#0f1115;border-color:var(--gold);font-weight:600}
+.btn.solid:hover{background:#e0c37e}
+.btn.ghost{border-color:var(--line);color:var(--muted);background:none}
+.btn.ghost:hover{border-color:var(--gold-dim);color:var(--gold)}
+.btn.sm{padding:6px 14px;font-size:13px}
+
+/* 弹层 */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;
+  display:none;place-items:center;padding:18px;
+}
+.overlay.open{display:grid}
+.modal{
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:18px;padding:26px 22px;width:100%;max-width:390px;
+  animation:pop .22s ease;
+}
+@keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.modal h2{font-size:17px;letter-spacing:.1em;margin-bottom:6px}
+.modal .hint{font-size:13px;color:var(--muted);margin-bottom:18px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+
+/* 页脚 */
+footer{border-top:1px solid var(--line);padding:24px 0 36px;text-align:center;color:var(--muted);font-size:12px;letter-spacing:.08em}
+.egg-dot{
+  display:inline-block;margin-left:6px;cursor:default;
+  color:var(--line);user-select:none;transition:color .3s;
+}
+.egg-dot:hover{color:var(--gold-dim)}
+
+/* Toast */
+#toast{
+  position:fixed;left:50%;bottom:34px;transform:translate(-50%,14px);
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  padding:10px 20px;border-radius:999px;font-size:14px;
+  opacity:0;pointer-events:none;transition:.25s;z-index:200;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>灰 潮 纪</h1>
+    <div class="sub">ASHEN TIDE RECORDS</div>
+  </div>
+  <button class="auth-btn" id="authBtn">登录</button>
+</header>
+
+<nav>
+  <div class="nav-inner">
+    <button class="tab active" data-view="world">世界观</button>
+    <button class="tab" data-view="npc">NPC 名录</button>
+    <button class="tab" data-view="chars">角色档案</button>
+    <button class="tab" data-view="tasks">任务公告</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- 世界观 -->
+  <section class="view active" id="view-world">
+    <div class="section-title">世 界 观</div>
+    <div class="grid" id="worldGrid"></div>
+  </section>
+
+  <!-- NPC -->
+  <section class="view" id="view-npc">
+    <div class="section-title">N P C  名 录</div>
+    <div class="grid" id="npcGrid"></div>
+  </section>
+
+  <!-- 角色档案 -->
+  <section class="view" id="view-chars">
+    <div class="row-between">
+      <div class="section-title">角 色 档 案</div>
+      <button class="btn solid sm" id="openSubmit" hidden>＋ 投稿角色</button>
+    </div>
+
+    <div class="panel" id="submitBox" hidden>
+      <div class="section-title">投 稿 角 色</div>
+      <form id="charForm">
+        <div class="form-row">
+          <div class="field">
+            <label>角色名 *</label>
+            <input name="name" required maxlength="24" placeholder="例如：林渡">
+          </div>
+          <div class="field">
+            <label>你的称呼 *</label>
+            <input name="owner" required maxlength="24" placeholder="例如：阿灰">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>身份 / 职业</label>
+            <input name="identity" maxlength="30" placeholder="例如：流浪测绘师">
+          </div>
+          <div class="field">
+            <label>年龄</label>
+            <input name="age" maxlength="12" placeholder="例如：24">
+          </div>
+        </div>
+        <div class="field">
+          <label>立绘图片链接（可选）</label>
+          <input name="imgUrl" placeholder="https://...">
+        </div>
+        <div class="field">
+          <label>角色简介 *</label>
+          <textarea name="desc" required maxlength="400" placeholder="出身、性格、与灰潮的关系……"></textarea>
+        </div>
+        <div class="field">
+          <label>标签（用逗号分隔）</label>
+          <input name="tags" placeholder="探索, 测绘, 灯塔">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" id="cancelSubmit">取消</button>
+          <button type="submit" class="btn solid">提交审核</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="pendingBox" hidden></div>
+    <div class="grid" id="charGrid"></div>
+  </section>
+
+  <!-- 任务 -->
+  <section class="view" id="view-tasks">
+    <div class="section-title">任 务 公 告</div>
+    <div class="grid" id="taskGrid"></div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    灰潮纪企划组 · 示例站点<span class="egg-dot" id="eggDot">·</span>
+  </div>
+</footer>
+
+<!-- 登录弹层 -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal">
+    <h2>进入档案库</h2>
+    <p class="hint">输入企划组发放的口令，解锁角色投稿。</p>
+    <input type="password" id="pwdInput" placeholder="口令" autocomplete="off">
+    <p class="err" id="loginErr"></p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelLogin">取消</button>
+      <button class="btn solid" id="doLogin">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用弹层（彩蛋） -->
+<div class="overlay" id="infoOverlay">
+  <div class="modal">
+    <div id="infoBody"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="closeInfo">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== 1. 内容数据：直接改这里 ========== */
+const WORLD = [
+  { title:'潮汐之下', body:'每隔四十九日，海面会升起一层灰白色的雾，称作「灰潮」。灰潮吞没海岸，也吞没记忆。被吞没的人会忘记自己的名字。' },
+  { title:'七座灯塔', body:'幸存者沿旧海岸线点燃了七座灯塔。灯光所及之处，灰潮退散。灯塔之外，是没有地图的世界。' },
+  { title:'守夜人议会', body:'七位守望者组成的松散组织，负责分配灯油、记录失踪者，以及决定谁有资格进入灯塔。他们从不解释理由。' }
+];
+
+const NPCS = [
+  { name:'沈砚', role:'第一灯塔守望者', desc:'话极少，眼睛常年被灯光灼得发红。他只对一件事感兴趣：灯油还够烧几天。', tags:['中立','灯塔'] },
+  { name:'白鹭', role:'档案管理员', desc:'掌管所有失踪者名录。她记得每一个被灰潮带走的名字，包括那些不该被记得的。', tags:['友善','档案'] },
+  { name:'无名商人', role:'黑市贩子', desc:'没人知道他叫什么。他卖灯油、卖旧地图，也卖别人忘掉的事。', tags:['中立','黑市'] },
+  { name:'「回声」', role:'来历不明', desc:'只在雾里出现。听见它说话的人，第二天会发现自己少了一段记忆。', tags:['危险','未知'] }
+];
+
+const TASKS = [
+  { title:'任务 01 · 灰潮将至', status:'urgent', statusText:'紧急', date:'2026-10-12',
+    body:'气象记录显示下一次灰潮将提前三天到来。请各角色在 10 月 15 日前提交所在位置与灯油储备。' },
+  { title:'任务 02 · 失踪的信使', status:'active', statusText:'进行中', date:'2026-10-08',
+    body:'第三灯塔派出的信使已逾期五日未归。最后目击地点在旧码头。参与者请自行组队搜寻。' },
+  { title:'任务 03 · 灯塔检修', status:'done', statusText:'已结束', date:'2026-09-20',
+    body:'第五灯塔灯室检修完成。感谢所有参与搬运灯油的玩家角色。相关记录已归档。' }
+];
+
+const SAMPLE_CHARS = [
+  { name:'林渡', owner:'示例', identity:'流浪测绘师', age:'24',
+    desc:'背着一卷永远画不完的海岸线。他相信灯塔之外还有陆地，只是没人愿意陪他去找。',
+    tags:['探索','测绘'] },
+  { name:'苏晚', owner:'示例', identity:'第六灯塔见习生', age:'19',
+    desc:'刚被分配到灯塔，还相信守夜人议会说的每一句话。她的灯油配额总是莫名多出一小瓶。',
+    tags:['灯塔','新人'] }
+];
+
+/* ========== 2. 口令（前端混淆，非真正加密） ========== */
+const PWD_CODES = [118,114,113,106,111,108,113,106,120,52,53,51,59];
+const PWD = String.fromCharCode(...PWD_CODES.map(n => n - 3));
+
+const AUTH_KEY  = 'oc_auth';
+const SUBS_KEY  = 'oc_subs';
+const REVIEW_MODE = new URLSearchParams(location.search).get('review') === '1';
+
+/* ========== 3. 工具 ========== */
+const $  = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg){
+  let el = document.getElementById('toast');
+  if (!el){ el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+const isAuthed = () => localStorage.getItem(AUTH_KEY) === '1';
+
+function getSubs(){
+  try { return JSON.parse(localStorage.getItem(SUBS_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveSubs(list){ localStorage.setItem(SUBS_KEY, JSON.stringify(list)); }
+
+/* ========== 4. 渲染 ========== */
+function charCard(c, opts = {}){
+  const initial = (c.name || '?').trim().charAt(0);
+  const img = c.imgUrl
+    ? `<img src="${esc(c.imgUrl)}" alt="" onerror="this.remove()">`
+    : '';
+  const tags = (c.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+  const pendingBadge = opts.pending ? `<span class="badge pending">待审核</span>` : '';
+  const reviewBtns = opts.review ? `
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn ghost sm" data-reject="${esc(c.id)}">删除</button>
+      <button class="btn solid sm" data-approve="${esc(c.id)}">通过</button>
+    </div>` : '';
+
+  return `
+  <article class="card">
+    <div class="char-head">
+      <div class="avatar-wrap">
+        <div class="avatar">${esc(initial)}</div>
+        ${img}
+      </div>
+      <div>
+        <h3>${esc(c.name)}</h3>
+        <div class="meta">${esc([c.identity, c.age && c.age + ' 岁'].filter(Boolean).join(' · ') || '身份未知')}</div>
+      </div>
+    </div>
+    <p>${esc(c.desc)}</p>
+    <div class="tags">
+      ${tags}
+      ${c.owner ? `<span class="tag">投稿：${esc(c.owner)}</span>` : ''}
+      ${pendingBadge}
+    </div>
+    ${reviewBtns}
+  </article>`;
+}
+
+function renderWorld(){
+  $('#worldGrid').innerHTML = WORLD.map(w => `
+    <article class="card">
+      <h3>${esc(w.title)}</h3>
+      <p>${esc(w.body)}</p>
+    </article>`).join('');
+}
+
+function renderNPCs(){
+  $('#npcGrid').innerHTML = NPCS.map(n => `
+    <article class="card">
+      <div class="char-head">
+        <div class="avatar-wrap"><div class="avatar">${esc(n.name.charAt(0))}</div></div>
+        <div>
+          <h3>${esc(n.name)}</h3>
+          <div class="meta">${esc(n.role)}</div>
+        </div>
+      </div>
+      <p>${esc(n.desc)}</p>
+      <div class="tags">${(n.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+    </article>`).join('');
+}
+
+function renderTasks(){
+  $('#taskGrid').innerHTML = TASKS.map(t => `
+    <article class="card">
+      <div class="row-between" style="margin-bottom:6px">
+        <span class="badge ${esc(t.status)}">${esc(t.statusText)}</span>
+        <span class="small muted">${esc(t.date)}</span>
+      </div>
+      <h3>${esc(t.title)}</h3>
+      <p>${esc(t.body)}</p>
+    </article>`).join('');
+}
+
+function renderChars(){
+  const subs = getSubs();
+  const approved = subs.filter(s => s.status === 'approved');
+  const all = [...SAMPLE_CHARS, ...approved];
+
+  $('#charGrid').innerHTML = all.length
+    ? all.map(c => charCard(c)).join('')
+    : '<p class="empty">暂无角色档案</p>';
+
+  const pending = subs.filter(s => s.status === 'pending');
+  const box = $('#pendingBox');
+
+  if (isAuthed() && pending.length){
+    box.hidden = false;
+    box.innerHTML = `
+      <div class="section-title" style="margin-top:8px">待 审 核（${pending.length}）</div>
+      <div class="grid" style="margin-bottom:22px">
+        ${pending.map(c => charCard(c, { pending:true, review: isAuthed() && REVIEW_MODE })).join('')}
+      </div>`;
+  } else {
+    box.hidden = true;
+    box.innerHTML = '';
+  }
+}
+
+function renderAll(){
+  renderWorld(); renderNPCs(); renderTasks(); renderChars();
+}
+
+/* ========== 5. 视图切换 ========== */
+function switchView(v){
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
+  $$('.view').forEach(s => s.classList.toggle('active', s.id === 'view-' + v));
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+$$('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+
+/* ========== 6. 登录 ========== */
+function updateAuthUI(){
+  const authed = isAuthed();
+  const btn = $('#authBtn');
+  btn.textContent = authed ? '退出' : '登录';
+  btn.classList.toggle('on', authed);
+  $('#openSubmit').hidden = !authed;
+  if (!authed){
+    $('#submitBox').hidden = true;
+  }
+  renderChars();
+}
+
+$('#authBtn').addEventListener('click', () => {
+  if (isAuthed()){
+    localStorage.removeItem(AUTH_KEY);
+    updateAuthUI();
+    toast('已退出登录');
+  } else {
+    $('#loginErr').textContent = '';
+    $('#pwdInput').value = '';
+    $('#loginOverlay').classList.add('open');
+    setTimeout(() => $('#pwdInput').focus(), 60);
+  }
+});
+
+function tryLogin(){
+  const val = $('#pwdInput').value;
+  if (val === PWD){
+    localStorage.setItem(AUTH_KEY, '1');
+    $('#loginOverlay').classList.remove('open');
+    updateAuthUI();
+    toast('口令正确，已解锁投稿');
+  } else {
+    $('#loginErr').textContent = '口令不正确';
+  }
+}
+$('#doLogin').addEventListener('click', tryLogin);
+$('#pwdInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+$('#cancelLogin').addEventListener('click', () => $('#loginOverlay').classList.remove('open'));
+
+/* ========== 7. 投稿 ========== */
+$('#openSubmit').addEventListener('click', () => {
+  $('#submitBox').hidden = false;
+  $('#submitBox').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+$('#cancelSubmit').addEventListener('click', () => { $('#submitBox').hidden = true; });
+
+$('#charForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!isAuthed()){ toast('请先登录'); return; }
+
+  const fd = new FormData(e.target);
+  const entry = {
+    id: 'c' + Date.now() + Math.floor(Math.random() * 1000),
+    name: (fd.get('name') || '').trim(),
+    owner: (fd.get('owner') || '').trim(),
+    identity: (fd.get('identity') || '').trim(),
+    age: (fd.get('age') || '').trim(),
+    imgUrl: (fd.get('imgUrl') || '').trim(),
+    desc: (fd.get('desc') || '').trim(),
+    tags: (fd.get('tags') || '').split(/[,，]/).map(s => s.trim()).filter(Boolean),
+    status: 'pending',
+    createdAt: Date.now()
+  };
+  if (!entry.name || !entry.owner || !entry.desc){ toast('请填写必填项'); return; }
+
+  const list = getSubs();
+  list.push(entry);
+  saveSubs(list);
+
+  e.target.reset();
+  $('#submitBox').hidden = true;
+  renderChars();
+  toast('已提交，等待站主审核');
+});
+
+/* ========== 8. 审核（仅 ?review=1 且已登录时可见） ========== */
+$('#pendingBox').addEventListener('click', e => {
+  const approveId = e.target.dataset.approve;
+  const rejectId  = e.target.dataset.reject;
+  if (!approveId && !rejectId) return;
+
+  let list = getSubs();
+  if (approveId){
+    list = list.map(x => x.id === approveId ? { ...x, status:'approved' } : x);
+    toast('已通过');
+  }
+  if (rejectId){
+    list = list.filter(x => x.id !== rejectId);
+    toast('已删除');
+  }
+  saveSubs(list);
+  renderChars();
+});
+
+/* ========== 9. 彩蛋 ========== */
+let eggClicks = 0;
+$('#eggDot').addEventListener('click', () => {
+  eggClicks++;
+  if (eggClicks >= 5){
+    eggClicks = 0;
+    $('#infoBody').innerHTML = `
+      <h2>档案残页 · 07</h2>
+      <p class="hint">来源不明 · 已被灰潮浸蚀</p>
+      <p style="font-size:14px;line-height:1.9;color:#c3c8d1">
+        「第七座灯塔其实从未点亮过。<br>
+        我们守着的不是光，是那份还需要有人守着的错觉。<br>
+        ——如果你读到这里，说明你也被记住了。」
+      </p>`;
+    $('#infoOverlay').classList.add('open');
+  }
+});
+$('#closeInfo').addEventListener('click', () => $('#infoOverlay').classList.remove('open'));
+$('#infoOverlay').addEventListener('click', e => {
+  if (e.target.id === 'infoOverlay') $('#infoOverlay').classList.remove('open');
+});
+
+/* ========== 10. 启动 ========== */
+renderAll();
+updateAuthUI();
+</script>
+</body>
+</html>
